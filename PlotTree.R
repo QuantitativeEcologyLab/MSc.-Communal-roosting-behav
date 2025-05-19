@@ -70,16 +70,19 @@ plot(
   edge.color = edge_colors,
   cex = 0.1,
   label.offset = 0.7,
-  no.margin = TRUE
+  no.margin = TRUE,
+  show.node.label = FALSE
 )
 
 # ==== 6. Add Legend with Custom Labels ====
 legend(
   "topright",
   legend = c("0 = Absence", "1 = Presence"),
+  title= "Communal Roosting Behaviour",
   col = c("blue", "red"),
   lwd = 2,
-  bty = "n"
+  bty = "n",
+  cex=0.7
 )
 
 # ==== 7. Plot All Clade Labels with Abbreviation for <30 and Hide <5 ====
@@ -127,7 +130,8 @@ for (i in seq_along(actual_orders)) {
         col = colors_order[i],
         lwd = 2,
         ln.offset = 1.1,
-        lab.offset = 1.2
+        lab.offset = 1.2,
+        mark.node=FALSE
       )
       
       # Store for reference
