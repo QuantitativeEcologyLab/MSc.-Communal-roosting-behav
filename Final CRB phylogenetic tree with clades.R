@@ -11,6 +11,7 @@ library(RColorBrewer) # Color palettes
 library(tidyverse)    # Data manipulation
 library(png)          # For silhouette images
 library(grid)         # Image rasterization
+library(rphylopic)    # for loading phylo images
 
 
 
@@ -144,32 +145,62 @@ for (i in seq_along(actual_orders)) {
   }
 }
 
-# ==== 9. Add Silhouette Images for Each Order ====
-image_folder <- "Order Images"
-for (i in seq_along(actual_orders)) {
-  # Load the image dynamically based on order number
-  image_path <- file.path(image_folder, paste0("Order ", i, ".png"))
-  
-  # Only load if the image exists
-  if (file.exists(image_path)) {
-    silhouette <- readPNG(image_path)
-    
-    # Calculate positioning around the fan
-    angle <- (i / length(actual_orders)) * 2 * pi
-    x_img <- 0.5 + 0.4 * cos(angle)
-    y_img <- 0.5 + 0.4 * sin(angle)
-    
-    # Add image to plot
-    grid.raster(silhouette, x = x_img, y = y_img, width = 0.12)
-  } else {
-    warning(paste("Image not found for:", image_path))
+# ==== adding the phylo images ====
+unique_orders <- unique(trait_data$Order)
+
+# Function to compute x and y coordinates based on radius and angle
+calculate_xy_positions <- function(df) {
+  if (!all(c("radius", "angle") %in% colnames(df))) {
+    stop("DataFrame must contain 'radius' and 'angle' columns.")
   }
+  
+  df$angle <- df$angle * (pi / 180)
+  # Calculate x and y based on radius and angle
+  df$x <- df$radius * cos(df$angle)
+  df$y <- df$radius * sin(df$angle)
+  
+  # Return the updated dataframe
+  return(df)
 }
+
+# First entry creates the dataframe
+image_df <- data.frame(
+  species = c("Corvus_corax", 
+              "Acanthagenys_rufogularis",
+              "Accipiter_gentilis",
+              "Amazona_albifrons",
+              "Bubo_bubo",
+              "Cathartes_aura",
+              "Contopus_sordidulus",
+              "Dryocopus_martius",
+              "Falco_peregrinus",
+              "Merops_apiaster",
+              "Ramphastos_sulfuratus",
+              "Troglodytes_hiemalis"),
+  radius = c(100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100),
+  angle = c(190, 160, 320,75, 290, 345,
+            140, 300, 10,310, 280, 200)  # in degrees
+)
+# calculate x and y based on angle and radius
+image_df <- calculate_xy_positions(image_df)
+
+# Try to get PhyloPic UUIDs for the species names
+image_df$uuid <- sapply(image_df$species, function(x) {
+  tryCatch(
+    get_uuid(x), 
+    error = function(e) "95c59456-77ac-489a-af08-b01001831727"
+  )
+})
+
+#find images for each uuid
+image_df$svg <- lapply(image_df$uuid, get_phylopic)
+
+# apply the images
+add_phylopic_base(img = image_df$svg, x = image_df$x, y = image_df$y, height = 4)
+
 
 # ==== 10. Final Touches ====
 title(main = "Phylogenetic Tree with Order Labels and Traits", cex.main = 1.2)
 cat("Tree plotted successfully!\n")
-
-
 
 
