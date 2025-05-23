@@ -144,34 +144,6 @@ for (i in seq_along(actual_orders)) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ==== 9. Add Silhouette Images for Each Order ====
 image_folder <- "Order Images"
 for (i in seq_along(actual_orders)) {
@@ -197,5 +169,7 @@ for (i in seq_along(actual_orders)) {
 # ==== 10. Final Touches ====
 title(main = "Phylogenetic Tree with Order Labels and Traits", cex.main = 1.2)
 cat("Tree plotted successfully!\n")
+
+
 
 
