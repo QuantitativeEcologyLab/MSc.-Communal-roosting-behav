@@ -2,11 +2,14 @@
 library(readxl)
 library(dplyr)
 library(writexl)
+library(openxlsx)
 
 # Define file paths
-brain_mass_file <- file.path(getwd(), "/Chapters/Brain size data and sources/Bird_Brain_size.xlsx")
-target_file <- file.path(getwd(), "/Chapters/main_database.csv")
-output_file <- file.path(getwd(), "BirdDatabase_wBrainMass.csv")
+#final data source output, and all inputs
+brain_mass_file <- file.path(getwd(), "/Chapters/Brain size data and sources/AllDataSourcesCombined.xlsx")
+
+target_file <- file.path(getwd(), "/Chapters/main_database.csv")   #data source 1
+output_file <- file.path(getwd(), "BirdDatabase_wBrainMass.csv")   #data source 
 
 # Read brain mass data from Excel file, "Combined" sheet
 brain_data <- read_excel(brain_mass_file, sheet = "Combined") %>%
@@ -29,15 +32,62 @@ cat("Successfully matched species:", matched_count, "out of", total_species, "\n
 data <- read.csv(output_file)
 data$brain_volume_mm3 <- as.numeric(gsub(",", "", data$brain_volume_mm3))
 clean_data <- data[!is.na(data$brain.mass.g) & !is.na(data$brain_volume_mm3), ]
-avg_density <- mean((clean_data$brain.mass.g / clean_data$brain_volume_mm3) * 1000, na.rm = TRUE)
+avg_density <- mean((clean_data$brain.mass.g / clean_data$brain_volume_mm3) * 1000, na.rm = TRUE) #grams/cm3
 
 # Add calculated brain mass
 updated_data$brain_mass_calculated <- ifelse(!is.na(updated_data$brain_volume_mm3),
                                              round(updated_data$brain_volume_mm3 * avg_density / 1000, 2),
                                              NA)
 
-# Save updated data
-write.csv(updated_data, output_file, row.names = FALSE)
+# compare new data from BirdlifeAustralia
+file_path <- file.path(getwd(), "/Chapters/Brain size data and sources/AllDataSourcesCombined.xlsx")
+# Read the bird name columns from each sheet
+birds_sheet1 <- read_excel(file_path, sheet = "Combined")$Species
+#birds_sheet2 <- read_excel(file_path, sheet = "BirdlifeAustralia")$Species
+birds_sheet2 <- read_excel(file_path, sheet = "BFncomms")$species
+
+#birds_sheet2 <- gsub(" ", "_", birds_sheet2)
+matching_species <- birds_sheet2[birds_sheet2 %in% birds_sheet1]
+num_matches <- length(matching_species)
+
+cat("Number of matches:", num_matches, "\n")
+cat("First 5 matches:\n")
+print(head(matching_species, 5))
+
+
+#add data in from BFncomms
+df <- read_excel(file_path, sheet = "BFncomms")
+density <- 1.09497
+
+df <- df %>%
+  mutate(
+    calculated_brain_volume = exp(LogBrain),           # back-calculate from ln(volume)
+    calculated_brain_mass = calculated_brain_volume / density  # get brain mass in grams
+  )
+head(df)
+
+write.csv(df, "BFncomms_with_calculated_brain_data.csv", row.names = FALSE)
+
+#search for only non matching rows in BFncomms, and add to combined sheet.
+
+# Read species from 'Combined' sheet
+combined_df <- read_excel(file_path, sheet = "Combined")
+combined_species <- combined_df$Species
+# Read data from 'BFncomms' sheet
+df_bfncomms <- read_excel(file_path, sheet = "BFncomms")
+# Find non-matching species
+non_matching <- df_bfncomms[!df_bfncomms$species %in% combined_species, ]
+# Prepare output: species and calculated_brain_mass renamed as brain.mass.g
+output <- non_matching %>%
+  select(species, calculated_brain_mass) %>%
+  rename(Species = species, brain.mass.g = calculated_brain_mass)
+# Add empty columns to match Combined structure
+missing_cols <- setdiff(names(combined_df), names(output))
+output[missing_cols] <- ""
+# Reorder columns to match Combined sheet
+output <- output[, names(combined_df)]
+# Save to CSV
+write.csv(output, "non_matching_species.csv", row.names = FALSE)
 
 # Calculate brain density for plotting
 data <- read.csv(output_file)
