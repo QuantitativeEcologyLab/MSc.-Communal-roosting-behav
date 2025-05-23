@@ -1,6 +1,5 @@
 ###################################
 ## Phylogenetic Tree Plot 
-###################################
 
 # ==== 1. Load Libraries ====
 library(ape)          # Phylogenetic tree handling
@@ -12,8 +11,18 @@ library(tidyverse)    # Data manipulation
 library(png)          # For silhouette images
 library(grid)         # Image rasterization
 library(rphylopic)    # for loading phylo images
+library(tribble)
+#Color Scheme
+primary_colors <- c(
+  "#66C2A5", # Aqua/Teal
+  "#FC8D62", # Salmon/Orange
+  "#8DA0CB", # Light Blue
+  "#E78AC3"  # Pink/Lilac
+)
 
-
+# Lighter Versions
+lighter_colors <- sapply(primary_colors, function(col) adjustcolor(col, red.f=1.4, green.f=1.4, blue.f=1.4))
+lighter_colors <- as.character(lighter_colors)
 
 # ==== 2. Load Data ====
 # Load the consensus tree and the trait data
@@ -21,13 +30,6 @@ load("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/phylo_data/Consensus
 phylo <- phylogeny
 
 trait_data <- read_csv("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/Updated database/Bird_data_clean.csv")
-
-
-####THIS IS THE ONE#####
-# ==== 1. Load Libraries ====
-library(ape)
-library(phytools)
-library(RColorBrewer)
 
 # ==== 2. Prepare the Data ====
 # Use all species in the phylogeny
@@ -60,7 +62,7 @@ for (i in seq_along(tip_edges)) {
   species_name <- phylo$tip.label[tip_index]
   
   if (species_name %in% names(tip_states)) {
-    edge_colors[tip_edges[i]] <- ifelse(tip_states[species_name] == "Presence", "red", "blue")
+    edge_colors[tip_edges[i]] <- ifelse(tip_states[species_name] == "Presence", primary_colors[1], primary_colors[2])
   }
 }
 
@@ -80,7 +82,7 @@ legend(
   "topright",
   legend = c("0 = Absence", "1 = Presence"),
   title= "Communal Roosting Behaviour",
-  col = c("blue", "red"),
+  col = c(primary_colors[1], primary_colors[2]),
   lwd = 2,
   bty = "n",
   cex=0.7
@@ -163,24 +165,25 @@ calculate_xy_positions <- function(df) {
   return(df)
 }
 
+
 # First entry creates the dataframe
-image_df <- data.frame(
-  species = c("Corvus_corax", 
-              "Acanthagenys_rufogularis",
-              "Accipiter_gentilis",
-              "Amazona_albifrons",
-              "Bubo_bubo",
-              "Cathartes_aura",
-              "Contopus_sordidulus",
-              "Dryocopus_martius",
-              "Falco_peregrinus",
-              "Merops_apiaster",
-              "Ramphastos_sulfuratus",
-              "Troglodytes_hiemalis"),
-  radius = c(100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100),
-  angle = c(190, 160, 320,75, 290, 345,
-            140, 300, 10,310, 280, 200)  # in degrees
+image_df <- tribble(
+  ~species,                ~radius, ~angle,
+  "Falco_peregrinus",       100,      5
+  # "Amazona_aestiva",        100,      75,
+  # "Corvus_corax",           100,     190,
+  # "Philemon",               100,     160,    #changed name
+  # "Accipiter_gentilis",     100,     320,
+  # 
+  # "Bubo_bubo",              100,     290,
+  # "Cathartes_aura",         100,     345,
+  # "Contopus cooperi",       100,     140,
+  # "Dryocopus_martius",      100,     300,
+  # "Merops",                 100,     310,     #changed name
+  # "Ramphastos_sulfuratus",  100,     280,
+  # "Troglodytes_hiemalis",   100,     200
 )
+
 # calculate x and y based on angle and radius
 image_df <- calculate_xy_positions(image_df)
 
