@@ -3,7 +3,7 @@ library(ggplot2)
 library(scales)
 library(forcats)
 
-#ReAd data
+#Read data
 trait_data <- read_csv("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/Updated database/Bird_data_clean.csv")
 
 # Data arrangement - drop NA, calculate percentages and lump small families
@@ -27,19 +27,20 @@ Fig2.1 <- ggplot(plot_data, aes(x = Family2, y = pct, fill = factor(CRB_Final)))
     labels = c("0" = "Absence", "1" = "Presence")
   ) +
   labs(
-    x        = "Family",
-    y        = "Percent of Species",
-    title    = "Communal Roosting by Family",
+    x        = "",
+    y        = "Percentage",
+    title    = "Prevalence of CRB per Family",
     #subtitle = "Only families with >25 species shown; all others grouped as “Other”"
   ) +
   theme_classic() +
   theme(
+    plot.title    = element_text(hjust = 0.5),
     axis.text.x  = element_text(angle = 45, hjust = 1),
     legend.position = "right"
   )
 
 
-# save it:
+# save it
 ggsave(
   filename ="Figures/Figure 2.1 Prevalence of CRB per Families.png",
   plot     = Fig2.1,
