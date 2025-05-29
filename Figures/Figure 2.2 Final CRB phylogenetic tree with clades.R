@@ -66,22 +66,33 @@ for (i in seq_along(tip_edges)) {
   }
 }
 
-# ==== 5. Plot the Full Tree with Tip Edge Coloring ====
+# ==== 5. Plot the Full Tree with Tip Edge Coloring and Save====
+png(
+  filename = "Figures/Figure 2.2 Evolution of Communal Roosting Behaviour in Core Land Birds.png",
+  width    = 10,     # inches
+  height   = 8,     # inches
+  units    = "in",
+  res      = 300    # DPI
+)
+
+par(mar = c(6, 5, 5, 5))
+
 plot(
   phylo,
   type = "fan",
   edge.color = edge_colors,
   cex = 0.1,
   label.offset = 0.7,
-  no.margin = TRUE,
+  #no.margin = TRUE,
+  main = "Evolution of Communal Roosting Behavior in Landbirds",
   show.node.label = FALSE
 )
 
 # ==== 6. Add Legend with Custom Labels ====
 legend(
   "topright",
-  legend = c("0 = Absence", "1 = Presence"),
-  title= "Communal Roosting Behaviour",
+  legend = c("Absence", "Presence"),
+  title= "CRB",
   col = c(primary_colors[1], primary_colors[2]),
   lwd = 2,
   bty = "n",
@@ -147,63 +158,116 @@ for (i in seq_along(actual_orders)) {
   }
 }
 
-# ==== adding the phylo images ====
-unique_orders <- unique(trait_data$Order)
-
-# Function to compute x and y coordinates based on radius and angle
-calculate_xy_positions <- function(df) {
-  if (!all(c("radius", "angle") %in% colnames(df))) {
-    stop("DataFrame must contain 'radius' and 'angle' columns.")
-  }
-  
-  df$angle <- df$angle * (pi / 180)
-  # Calculate x and y based on radius and angle
-  df$x <- df$radius * cos(df$angle)
-  df$y <- df$radius * sin(df$angle)
-  
-  # Return the updated dataframe
-  return(df)
-}
-
-
-# First entry creates the dataframe
+# Method 1 Manually Position the Images
 image_df <- tribble(
   ~species,                ~radius, ~angle,
-  "Falco_peregrinus",       100,      5
-  # "Amazona_aestiva",        100,      75,
-  # "Corvus_corax",           100,     190,
-  # "Philemon",               100,     160,    #changed name
-  # "Accipiter_gentilis",     100,     320,
-  # 
-  # "Bubo_bubo",              100,     290,
-  # "Cathartes_aura",         100,     345,
-  # "Contopus cooperi",       100,     140,
-  # "Dryocopus_martius",      100,     300,
-  # "Merops",                 100,     310,     #changed name
-  # "Ramphastos_sulfuratus",  100,     280,
-  # "Troglodytes_hiemalis",   100,     200
+  "Falco_peregrinus",         110,       5,
+  "Amazona_aestiva",          110,      35,  #psittaciformes
+  "Contopus cooperi",         110,     125,
+  "Philemon",                 110,     150,    #changed name
+  "Corvus_corax",             110,     170, #passeriformes
+  "Aethopyga_siparaja",       110,     195,
+  "Troglodytes_hiemalis",     110,     230,
+  "Turdus_pilaris",           110,     260,
+  "Bubo_bubo",                110,     295,
+  "Dryocopus_martius",        110,     305,
+  "Merops",                   110,     310,     #changed name
+  "Accipiter_gentilis",       110,     320,
+  "Cathartes_aura",           110,     350
 )
 
-# calculate x and y based on angle and radius
-image_df <- calculate_xy_positions(image_df)
+#function to update this dataframe
+update_image_df <- function(df,
+                            default_uuid = "95c59456-77ac-489a-af08-b01001831727") {
+  # sanity check
+  if (!all(c("species","radius","angle") %in% names(df))) {
+    stop("Data frame must contain columns: species, radius, angle")
+  }
+  
+  # compute radians & coords
+  df$angle_rad <- df$angle * pi/180
+  df$x         <- df$radius * cos(df$angle_rad)
+  df$y         <- df$radius * sin(df$angle_rad)
+  
+  # lookup UUIDs (fallback on default)
+  df$uuid <- sapply(df$species, function(sp) {
+    tryCatch(get_uuid(sp), error = function(e) default_uuid)
+  })
+  
+  # fetch SVGs (NULL if missing)
+  df$svg <- lapply(df$uuid, function(id) {
+    tryCatch(get_phylopic(uuid = id), error = function(e) NULL)
+  })
+  
+  df
+}
 
-# Try to get PhyloPic UUIDs for the species names
-image_df$uuid <- sapply(image_df$species, function(x) {
-  tryCatch(
-    get_uuid(x), 
-    error = function(e) "95c59456-77ac-489a-af08-b01001831727"
-  )
+#call function to update the df
+image_df <- update_image_df(image_df)
+
+# STEP 5: add images to the fan chart
+add_phylopic_base(
+  img    = image_df$svg,
+  x      = image_df$x,
+  y      = image_df$y,
+  height = 8
+)
+
+
+dev.off()
+
+
+
+
+
+
+## Alternate, Method two lookup position based on their order in the fan chart
+n_images   <- 10
+tip_labels <- phylo$tip.label
+N          <- length(tip_labels)
+radius     <- 110
+
+# STEP 1: generate a buffer of evenly spaced tip indices
+even_idx <- round(seq(1, N, length.out = n_images * 2))
+
+# STEP 2: pick the first n_images with valid UUIDs
+selected <- data.frame(species = character(),
+                       index   = integer(),
+                       uuid    = character(),
+                       stringsAsFactors = FALSE)
+
+i <- 1
+while(nrow(selected) < n_images && i <= length(even_idx)) {
+  idx <- even_idx[i]
+  sp  <- tip_labels[idx]
+  
+  uuid <- tryCatch(get_uuid(sp), error = function(e) NA)
+  if(!is.na(uuid)) {
+    selected <- rbind(selected,
+                      data.frame(species = sp,
+                                 index   = idx,
+                                 uuid    = uuid,
+                                 stringsAsFactors = FALSE))
+  }
+  i <- i + 1
+}
+
+# STEP 3: compute angles and Cartesian coords
+selected$angle    <- (selected$index - 1) * (360 / N)
+selected$angle_r  <- selected$angle * pi/180
+selected$x        <- radius * cos(selected$angle_r)
+selected$y        <- radius * sin(selected$angle_r)
+
+# STEP 4: fetch SVGs
+selected$svg <- lapply(selected$uuid, function(id) {
+  tryCatch(get_phylopic(uuid = id), error = function(e) NULL)
 })
 
-#find images for each uuid
-image_df$svg <- lapply(image_df$uuid, get_phylopic)
-
-# apply the images
-add_phylopic_base(img = image_df$svg, x = image_df$x, y = image_df$y, height = 4)
-
-
-# ==== 10. Final Touches ====
-title(main = "Phylogenetic Tree with Order Labels and Traits", cex.main = 1.2)
-cat("Tree plotted successfully!\n")
-
-
+# STEP 5: add images to the fan chart
+add_phylopic_base(
+  img    = selected$svg,
+  x      = selected$x,
+  y      = selected$y,
+  height = 8
+)
+################################################################################
