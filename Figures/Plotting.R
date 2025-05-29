@@ -116,7 +116,10 @@ p <- ggtree(tree, layout = "rectangular") %<+% traits +
 
 print(p)
 
+
+
 #---------------------------------------------------------#
+
 # GENERIC PLOT HWI MASS AND CRB #
 # x y chart of HWI vs Mass for CRB
 cols <- c(primary_colors[1], primary_colors[2])[as.factor(traits$CRB_Final)]
