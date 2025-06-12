@@ -12,6 +12,7 @@ library(png)          # For silhouette images
 library(grid)         # Image rasterization
 library(rphylopic)    # for loading phylo images
 library(tribble)
+library(ragg)
 #Color Scheme
 primary_colors <- c(
   "#66C2A5", # Aqua/Teal
@@ -215,6 +216,194 @@ add_phylopic_base(
 
 
 dev.off()
+
+
+
+
+
+
+
+
+
+#Version for printing
+png(
+  filename = "Figures/Figure 2.2 trial1.png",
+  width    = 30,     # inches
+  height   = 24,     # inches
+  units    = "in",
+  res      = 300    # DPI
+)
+
+
+par(mar = c(6, 5, 5, 5))
+
+plot(
+  phylo,
+  type = "fan",
+  edge.color = edge_colors,
+  cex = 0.3,
+  label.offset = 0.7,
+  #no.margin = TRUE,
+  main = "Evolution of Communal Roosting Behavior in Landbirds",
+  cex.main=4,
+  show.node.label = FALSE
+)
+
+# ==== 6. Add Legend with Custom Labels ====
+legend(
+  "topright",
+  legend = c("Absence", "Presence"),
+  title= "CRB",
+  col = c(primary_colors[1], primary_colors[2]),
+  lwd = 2,
+  bty = "n",
+  cex=1.5
+)
+
+# ==== 7. Plot All Clade Labels with Abbreviation for <30 and Hide <5 ====
+actual_orders <- unique(trait_data$Order)
+colors_order <- colorRampPalette(brewer.pal(8, "Dark2"))(length(actual_orders))
+clade_positions <- data.frame()
+
+# Function to abbreviate clade names
+abbreviate_label <- function(label) {
+  words <- unlist(strsplit(label, "_| "))
+  if (length(words) > 1) {
+    paste0(substr(words, 1, 3), collapse = ".")
+  } else {
+    substr(label, 1, 4)
+  }
+}
+
+# Loop through each order and find its MRCA (Most Recent Common Ancestor)
+for (i in seq_along(actual_orders)) {
+  order <- actual_orders[i]
+  species_in_order <- trait_data$Species[trait_data$Order == order]
+  species_in_tree <- species_in_order[species_in_order %in% phylo$tip.label]
+  
+  # Proceed only if there are at least 5 species
+  if (length(species_in_tree) >= 10) {
+    mrca_node <- getMRCA(phylo, species_in_tree)
+    
+    if (!is.null(mrca_node)) {
+      # Abbreviate the name if the clade has fewer than 30 species
+      clade_label <- if (length(species_in_tree) < 25) {
+        abbreviate_label(order)
+      } else {
+        order
+      }
+      
+      # Set font size based on the clade size
+      font_size <- ifelse(length(species_in_tree) > 15, 1.5, ifelse(length(species_in_tree) < 15, 1.3, 1.4))
+      
+      # Add the clade label
+      arc.cladelabels(
+        phy = phylo,
+        node = mrca_node,
+        text = clade_label,
+        cex = font_size,
+        col = colors_order[i],
+        lwd = 2,
+        ln.offset = 1.1,
+        lab.offset = 1.2,
+        mark.node=FALSE
+      )
+      
+      # Store for reference
+      clade_positions <- rbind(clade_positions, data.frame(
+        label = order,
+        color = colors_order[i],
+        node = mrca_node
+      ))
+    }
+  }
+}
+
+# Method 1 Manually Position the Images
+image_df <- tribble(
+  ~species,                ~radius, ~angle,
+  "Falco_peregrinus",         110,       5,
+  "Amazona_aestiva",          110,      35,  #psittaciformes
+  "Contopus cooperi",         110,     125,
+  "Philemon",                 110,     150,    #changed name
+  "Corvus_corax",             110,     170, #passeriformes
+  "Aethopyga_siparaja",       110,     195,
+  "Troglodytes_hiemalis",     110,     230,
+  "Turdus_pilaris",           110,     260,
+  "Bubo_bubo",                110,     295,
+  "Dryocopus_martius",        110,     305,
+  "Merops",                   110,     310,     #changed name
+  "Accipiter_gentilis",       110,     320,
+  "Cathartes_aura",           110,     350
+)
+
+#function to update this dataframe
+update_image_df <- function(df,
+                            default_uuid = "95c59456-77ac-489a-af08-b01001831727") {
+  # sanity check
+  if (!all(c("species","radius","angle") %in% names(df))) {
+    stop("Data frame must contain columns: species, radius, angle")
+  }
+  
+  # compute radians & coords
+  df$angle_rad <- df$angle * pi/180
+  df$x         <- df$radius * cos(df$angle_rad)
+  df$y         <- df$radius * sin(df$angle_rad)
+  
+  # lookup UUIDs (fallback on default)
+  df$uuid <- sapply(df$species, function(sp) {
+    tryCatch(get_uuid(sp), error = function(e) default_uuid)
+  })
+  
+  # fetch SVGs (NULL if missing)
+  df$svg <- lapply(df$uuid, function(id) {
+    tryCatch(get_phylopic(uuid = id), error = function(e) NULL)
+  })
+  
+  df
+}
+
+#call function to update the df
+image_df <- update_image_df(image_df)
+
+# STEP 5: add images to the fan chart
+add_phylopic_base(
+  img    = image_df$svg,
+  x      = image_df$x,
+  y      = image_df$y,
+  height = 8
+)
+
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
