@@ -14,10 +14,19 @@ library('ggtree')
 library("Rcpp")
 #install.packages("phytools")
 library(phytools)
+#install.packages("pushoverr")
+library(pushoverr)
+set_pushover_user(user = "usdw6uw28zwd2496rr2dnni3efz4ds")
+set_pushover_app(token = "aa21xm4a7vi9dcfv9d46p1qypg8miu")
 
 #load data
+#windows
 load("C:/Users/sandracd/OneDrive - UBC (1)/PhD proposal/Chapter 2/phylo_data/Consensus_Tree.Rda")
 Bird_data <- read.csv("C:/Users/sandracd/OneDrive - UBC (1)/PhD proposal/Chapter 2/Brain size data and sources/Bird_data.csv")
+#Linux
+load("/home/sandracd/Downloads/Consensus_Tree.Rda")
+Bird_data <- read.csv("/home/sandracd/Downloads/Bird_data.csv")
+sub <- read.csv("/home/sandracd/Downloads/sub.csv")
 
 #Wrangle dataset
 Bird_data$Species <- gsub("_+$", "", Bird_data$Species)
@@ -136,11 +145,74 @@ test_model_phyl_subset_40 <- brm(
   cores = 40,
   thin=1000
 )
-
+pushover(message = "Model 40 chains 1000 thin finished")
 summary(test_model_phyl_subset_40)
 plot(test_model_phyl_subset_40)
 
+#40 chains and 100 thin#
+test_model_phyl_subset_40_2 <- brm(
+  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
+  data = sub_subset,
+  data2 = list(A_subset = A_subset),
+  family = bernoulli,
+  iter = 1e5,
+  warmup = 5e4,
+  chains = 40,   
+  cores = 40,
+  thin=100
+)
+pushover(message = "Model 40 chains 100 thin finished")
 
+summary(test_model_phyl_subset_40_2)
+plot(test_model_phyl_subset_40_2)
+
+
+
+
+#model no phylo for priors#
+test_model_nophyl <- brm(
+  CRB_Final ~ mass_kg + Trophic_level + HWI,
+  data = sub_subset,
+  #data2 = list(A_subset = A_subset),
+  family = bernoulli,
+  iter = 1e5,
+  warmup = 5e4,
+  chains = 40,   
+  cores = 40,
+  thin=1000
+)
+pushover(message = "Model no phylo 1000 thin finished")
+
+summary(test_model_nophyl)
+plot(test_model_nophyl)
+
+
+#Define priors based on nophylo models
+priors <- c(
+  set_prior("normal(-0.84, 0.23)", class = "Intercept"),
+  set_prior("normal(0.19, 0.11)", coef = "mass_kg", class = "b"),
+  set_prior("normal(0.53, 0.17)", coef = "Trophic_levelHerbivore", class = "b"),
+  set_prior("normal(0.71, 0.20)", coef = "Trophic_levelOmnivore", class = "b"),
+  set_prior("normal(-0.05, 0.76)", coef = "Trophic_levelScavenger", class = "b"),
+  set_prior("normal(0.03, 0.01)", coef = "HWI", class = "b")
+  )
+
+#Test model 40 chains 1000 thin WITH PRIORS
+test_model_phyl_subset_40_PRIORS <- brm(
+  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
+  data = sub_subset,
+  data2 = list(A_subset = A_subset),
+  family = bernoulli,
+  prior = priors,
+  iter = 1e5,
+  warmup = 5e4,
+  chains = 40,
+  cores = 40,
+  thin = 1000
+)
+pushover(message = "Model 40 chains 1000 PRIORS thin finished")
+summary(test_model_phyl_subset_40_PRIORS)
+plot(test_model_phyl_subset_40_PRIORS)
 
 
 
