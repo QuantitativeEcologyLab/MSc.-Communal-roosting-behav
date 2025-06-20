@@ -189,13 +189,35 @@ plot(test_model_nophyl)
 
 #Define priors based on nophylo models
 priors <- c(
-  set_prior("normal(-0.84, 0.23)", class = "Intercept"),
-  set_prior("normal(0.19, 0.11)", coef = "mass_kg", class = "b"),
-  set_prior("normal(0.53, 0.17)", coef = "Trophic_levelHerbivore", class = "b"),
-  set_prior("normal(0.71, 0.20)", coef = "Trophic_levelOmnivore", class = "b"),
-  set_prior("normal(-0.05, 0.76)", coef = "Trophic_levelScavenger", class = "b"),
-  set_prior("normal(0.03, 0.01)", coef = "HWI", class = "b")
+  set_prior("normal(-0.84, 1.15)", class = "Intercept"),
+  set_prior("normal(0.19, 0.55)", coef = "mass_kg", class = "b"),
+  set_prior("normal(0.53, 0.85)", coef = "Trophic_levelHerbivore", class = "b"),
+  set_prior("normal(0.71, 1.00)", coef = "Trophic_levelOmnivore", class = "b"),
+  set_prior("normal(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
+  set_prior("normal(0.03, 0.05)", coef = "HWI", class = "b")
   )
+
+
+
+#Define priors based on nophylo models
+#Option A using normal priors - not using this one
+priors <- c(
+  set_prior("normal(-0.84, 1.15)", class = "Intercept"),
+  set_prior("normal(0.19, 0.55)", coef = "mass_kg", class = "b"),
+  set_prior("normal(0.53, 0.85)", coef = "Trophic_levelHerbivore", class = "b"),
+  set_prior("normal(0.71, 1.00)", coef = "Trophic_levelOmnivore", class = "b"),
+  set_prior("normal(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
+  set_prior("normal(0.03, 0.05)", coef = "HWI", class = "b")
+)
+#Option B using cauchy priors - using this one
+priors <- c(
+  set_prior("cauchy(-0.84, 1.15)", class = "Intercept"),
+  set_prior("cauchy(0.19, 0.55)", coef = "mass_kg", class = "b"),
+  set_prior("cauchy(0.53, 0.85)", coef = "Trophic_levelHerbivore", class = "b"),
+  set_prior("cauchy(0.71, 1.00)", coef = "Trophic_levelOmnivore", class = "b"),
+  set_prior("cauchy(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
+  set_prior("cauchy(0.03, 0.05)", coef = "HWI", class = "b")
+)
 
 #Test model 40 chains 1000 thin WITH PRIORS
 test_model_phyl_subset_40_PRIORS <- brm(
@@ -204,11 +226,11 @@ test_model_phyl_subset_40_PRIORS <- brm(
   data2 = list(A_subset = A_subset),
   family = bernoulli,
   prior = priors,
-  iter = 1e5,
-  warmup = 5e4,
+  iter = 1e6,
+  warmup = 5e5,
   chains = 40,
   cores = 40,
-  thin = 1000
+  thin = 10000
 )
 pushover(message = "Model 40 chains 1000 PRIORS thin finished")
 summary(test_model_phyl_subset_40_PRIORS)
