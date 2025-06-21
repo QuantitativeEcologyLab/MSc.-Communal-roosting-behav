@@ -46,7 +46,7 @@ Fig2.1 <- ggplot(plot_data, aes(x = Family2, y = pct, fill = factor(CRB_Final)))
   add_phylopic(name = "Corvidae", x=2, y=10, height = 10) +
   add_phylopic(name = "Ploceidae", x=3, y=10, height = 10) +
   add_phylopic(name = "Psittacidae", x=4, y=10, height = 10) +
-  add_phylopic(name = "Sturnidae", x=5, y=10, height = 10) +
+  add_phylopic(name = "Sturnidae", x=5, y=10, height = 10, verbose = TRUE) +
   add_phylopic(name = "Other", x=6, y=10, height = 10)
 
 # save it
