@@ -27,7 +27,7 @@ lighter_colors <- as.character(lighter_colors)
 
 # ==== 2. Load Data ====
 # Load the consensus tree and the trait data
-load("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/phylo_data/Consensus_Tree.Rda")
+load("Models/Consensus_Tree.Rda")
 phylo <- phylogeny
 
 trait_data <- read_csv("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/Updated database/Bird_data_clean.csv")
