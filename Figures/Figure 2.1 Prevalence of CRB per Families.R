@@ -2,9 +2,11 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(forcats)
+library(readr)
+library(rphylopic)
 
 #Read data
-trait_data <- read_csv("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/Updated database/Bird_data_clean.csv")
+trait_data <- read_csv("Data/Bird_data_clean.csv")
 
 # Data arrangement - drop NA, calculate percentages and lump small families
 plot_data <- trait_data %>%
@@ -28,17 +30,24 @@ Fig2.1 <- ggplot(plot_data, aes(x = Family2, y = pct, fill = factor(CRB_Final)))
   ) +
   labs(
     x        = "",
-    y        = "Percentage",
+    y        = "",
     title    = "Prevalence of CRB per Family",
     #subtitle = "Only families with >25 species shown; all others grouped as “Other”"
   ) +
   theme_classic() +
   theme(
-    plot.title    = element_text(hjust = 0.5),
-    axis.text.x  = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
-  )
-
+    plot.title    = element_text(hjust = 0.5, size=16),
+    axis.text.x  = element_text(angle = 45, hjust = 0.5, vjust = 0.5, size=16),
+    axis.text.y = element_text(size=16),
+    legend.position = "right",
+    legend.text = element_text(size=16)
+  ) +
+  add_phylopic(name = "Accipitridae", x=1, y=10, height = 10) +
+  add_phylopic(name = "Corvidae", x=2, y=10, height = 10) +
+  add_phylopic(name = "Ploceidae", x=3, y=10, height = 10) +
+  add_phylopic(name = "Psittacidae", x=4, y=10, height = 10) +
+  add_phylopic(name = "Sturnidae", x=5, y=10, height = 10) +
+  add_phylopic(name = "Other", x=6, y=10, height = 10)
 
 # save it
 ggsave(
