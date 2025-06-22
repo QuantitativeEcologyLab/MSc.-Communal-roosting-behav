@@ -1,5 +1,6 @@
 # install.packages("geiger")   # if you don’t have it
 library(geiger)
+library(loo)
 library(dplyr)
 library('phytools')
 library('ape')
@@ -94,48 +95,9 @@ dim(sub_subset)
 dim(A_subset)
 
 
-#Test model Pagels lambda above from physig
-test_model_phyl_subset <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 8,   
-  cores = 8,
-  thin=1000
-)
-
-summary(test_model_phyl_subset)
-plot(test_model_phyl_subset)
-
-
-
-
-test_model_phyl_subset_100 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 8,   
-  cores = 8,
-  thin=100
-)
-
-
-summary(test_model_phyl_subset_100)
-plot(test_model_phyl_subset_100)
-
-
-
-
-
-#40 chains and 1000 thin#
-test_model_phyl_subset_40 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
+#Null model with phylogeny only 
+Null_model <- brm(
+  CRB_Final ~ 1+ (1|gr(phylogeny, cov = A_subset)),
   data = sub_subset,
   data2 = list(A_subset = A_subset),
   family = bernoulli,
@@ -145,31 +107,12 @@ test_model_phyl_subset_40 <- brm(
   cores = 40,
   thin=1000
 )
-pushover(message = "Model 40 chains 1000 thin finished")
-summary(test_model_phyl_subset_40)
-plot(test_model_phyl_subset_40)
 
-#40 chains and 100 thin#
-test_model_phyl_subset_40_2 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 40,   
-  cores = 40,
-  thin=100
-)
-pushover(message = "Model 40 chains 100 thin finished")
-
-summary(test_model_phyl_subset_40_2)
-plot(test_model_phyl_subset_40_2)
+summary(Null_model)
+plot(Null_model)
 
 
-
-
-#model no phylo for priors#
+#Model no phylo for priors
 test_model_nophyl <- brm(
   CRB_Final ~ mass_kg + Trophic_level + HWI,
   data = sub_subset,
@@ -209,6 +152,7 @@ priors <- c(
   set_prior("normal(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
   set_prior("normal(0.03, 0.05)", coef = "HWI", class = "b")
 )
+
 #Option B using cauchy priors - using this one
 priors <- c(
   set_prior("cauchy(-0.84, 1.15)", class = "Intercept"),
@@ -219,7 +163,8 @@ priors <- c(
   set_prior("cauchy(0.03, 0.05)", coef = "HWI", class = "b")
 )
 
-#Test model 40 chains 1000 thin WITH PRIORS
+#Model 1 with Pagels lambda included from physig calculation
+#Model 40 chains 1000 thin WITH PRIORS
 test_model_phyl_subset_40_PRIORS <- brm(
   CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
   data = sub_subset,
@@ -236,35 +181,28 @@ pushover(message = "Model 40 chains 1000 PRIORS thin finished")
 summary(test_model_phyl_subset_40_PRIORS)
 plot(test_model_phyl_subset_40_PRIORS)
 
+saveRDS(test_model_phyl_subset_40_PRIORS,
+        file="Models/test_model_phyl_subset_40_PRIORS.rds")
+
+
+#Model comparison for null model vs global model
+
+test_model_phyl_subset_40_PRIORS <- readRDS("Models/test_model_phyl_subset_40_PRIORS.rds")
 
 
 
 
 
+light_fit <- brm(CRB_Final ~ mass_kg + Trophic_level + HWI +
+                   (1 | gr(phylogeny, cov = A_subset)),
+                 data = sub_subset,
+                 data2 = list(A_subset = A_subset),
+                 family = bernoulli,
+                 prior = priors,
+                 chains = 4, cores = 4, iter = 4000, warmup = 2000,
+                 save_pars = save_pars(all = TRUE)   # keep latent draws!
+                 )
 
 
 
 
-# Subset the phylogenetic covariance matrix FOR BROWNIAN. WE DONT NEED THIS
-A <- ape::vcv.phylo(phylogeny)
-
-A_subset_Brownian <- A[selected_species, selected_species]
-
-#Test model Brownian - Pagel 1
-test_model_phyl_subset_Brownian <- brm(
-  CRB_Final ~ Mass + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset_Brownian)),
-  data = sub_subset,
-  data2 = list(A_subset_Brownian = A_subset_Brownian),
-  family = bernoulli,
-  iter = 1e4,
-  warmup = 5e3,
-  chains = 8,   
-  cores = 8     
-)
-
-summary(test_model_phyl_subset_Brownian)
-plot(test_model_phyl_subset_Brownian)
-
-
-  
-  
