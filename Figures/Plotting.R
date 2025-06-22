@@ -318,3 +318,118 @@ top10_mass <- traits[order(-traits$mass_kg), ][1:10, "Species"]
 top10_mass$Species  # Print species names (or just use top10_mass)
 top10_hwi <- traits[order(-traits$HWI), ][1:10, "Species"]
 top10_hwi$Species  # Print species names (or just use top10_hwi)
+
+
+######################################################################
+## Phylogenetic Tree Plot, Subset (Subset of Accipitriforms)
+
+# ==== 1. Load Libraries ====
+library(ape)          # Phylogenetic tree handling
+library(maps)
+library(geiger)
+library(ggtree)
+library(RColorBrewer) # Color palettes
+library(tidyverse)    # Data manipulation
+library(png)          # For silhouette images
+library(grid)         # Image rasterization
+library(rphylopic)    # for loading phylo images
+library(tribble)
+library(ragg)
+#Color Scheme
+primary_colors <- c(
+  "#66C2A5", # Aqua/Teal
+  "#FC8D62", # Salmon/Orange
+  "#8DA0CB", # Light Blue
+  "#E78AC3"  # Pink/Lilac
+)
+
+# Lighter Versions
+lighter_colors <- sapply(primary_colors, function(col) adjustcolor(col, red.f=1.4, green.f=1.4, blue.f=1.4))
+lighter_colors <- as.character(lighter_colors)
+
+# ==== 2. Load Data ====
+# Load the consensus tree and the trait data
+load("Models/Consensus_Tree.Rda")
+phylo <- phylogeny
+
+trait_data <- read_csv("Data/Bird_data_clean.csv")
+
+# ==== 2. Prepare the Data ====
+# Use all species in the phylogeny
+subset_tips <- c("Gyps_indicus", "Harpyopsis_novaeguineae")
+#subset_tips <- c("Ninox_ochracea", "Phoeniculus_damarensis") # strigiformes
+#subset_tips <- c("Eclectus_roratus", "Alisterus_chloropterus" ) # parrots
+#subset_tips <- c("Toxostoma_rufum", "Myadestes_townsendi" ) # parrots
+
+subset_tips %in% phylo$tip.label
+mrca_node <- getMRCA(phylo, subset_tips)
+sampled_species <- extract.clade(phylo, mrca_node)
+#sampled_species <- phylogeny$tip.label
+
+# Prune the phylo tree to the extent of the two species
+phylo <- extract.clade(phylo, mrca_node)
+
+phylo$tip.label
+# ==== 3. Map Traits to Tree Edges ====
+# Find matching species and their edges
+matched <- intersect(trait_data$Species, phylo$tip.label)
+tip_traits <- trait_data$CRB_Final[match(matched, trait_data$Species)]
+
+# Create a named vector for states (0 or 1)
+tip_states <- ifelse(tip_traits == 1, "Presence", "Absence")
+names(tip_states) <- matched
+
+# Initialize all edges as "Absence"
+edge_states <- setNames(rep("Absence", length(phylo$tip.label)), phylo$tip.label)
+
+# Apply the trait states to the edges
+edge_states[names(tip_states)] <- tip_states
+
+# ==== 4. Identify Tip Edges ====
+tip_edges <- which(phylo$edge[, 2] <= length(phylo$tip.label))
+edge_colors <- rep("black", nrow(phylo$edge))
+
+for (i in seq_along(tip_edges)) {
+  tip_index <- phylo$edge[tip_edges[i], 2]
+  species_name <- phylo$tip.label[tip_index]
+  
+  if (species_name %in% names(tip_states)) {
+    edge_colors[tip_edges[i]] <- ifelse(tip_states[species_name] == "Presence", primary_colors[1], primary_colors[2])
+  }
+}
+
+# ==== 5. Plot the Full Tree with Tip Edge Coloring and Save====
+png(
+  filename = "Figures/Figure 2.X Evolution of Communal Roosting Behaviour in Subset of Raptors.png",
+  width    = 10,     # inches
+  height   = 8,     # inches
+  units    = "in",
+  res      = 300    # DPI
+)
+
+#par(mar = c(6, 5, 5, 5))
+
+plot(
+  phylo,
+  type = "phylo",
+  edge.color = edge_colors,
+  cex = 0.5,
+  label.offset = 0.7,
+  #no.margin = TRUE,
+  main = "Evolution of Communal Roosting Behavior in Subset of Raptors",
+  show.node.label = FALSE
+)
+
+# ==== 6. Add Legend with Custom Labels ====
+legend(
+  "bottomleft",
+  legend = c("Absence", "Presence"),
+  title= "CRB",
+  col = c(primary_colors[1], primary_colors[2]),
+  lwd = 2,
+  bty = "n",
+  cex=0.7
+)
+
+dev.off()
+
