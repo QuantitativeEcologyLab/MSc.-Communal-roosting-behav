@@ -110,7 +110,8 @@ Null_model <- brm(
 
 summary(Null_model)
 plot(Null_model)
-
+saveRDS(Null_model,
+        file="Models/Null_model.rds")
 
 #Model no phylo for priors
 test_model_nophyl <- brm(
