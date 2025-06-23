@@ -433,3 +433,67 @@ legend(
 
 dev.off()
 
+
+###################
+# Plotting a subset with other variables
+
+# ==== 0. Install (if needed) ====
+# if (!requireNamespace("BiocManager", quietly=TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install("ggtreeExtra")
+
+# ==== 1. Libraries ====
+library(ape)            # reading & manipulating trees
+library(ggtree)         # ggplot2 grammar for trees
+library(ggtreeExtra)    # geom_fruit()
+library(tidyverse)      # read_csv + dplyr
+library(RColorBrewer)   # nice palettes
+
+
+# ==== 2. Load Data ====
+load("Models/Consensus_Tree.Rda")            # gives object `phylogeny`
+trait_data <- read_csv("Data/Bird_data_clean.csv")
+
+# ==== 3. Subset to Your Clade ====
+subset_tips <- c("Gyps_indicus", "Harpyopsis_novaeguineae")
+mrca_node   <- getMRCA(phylogeny, subset_tips)
+phylo       <- extract.clade(phylogeny, mrca_node)
+
+# ==== 4. Prepare Tip‐Data ====
+tip_df <- trait_data %>%
+  filter(Species %in% phylo$tip.label) %>%
+  mutate(
+    State   = if_else(CRB_Final == 1, "Presence", "Absence"),
+    Mass    = Mass               # ensure you have this numeric column
+  )
+
+# ==== 5. Build Base Tree Plot ====
+base_plot <- ggtree(phylo) %<+% tip_df +
+  aes(color = State) +
+  geom_tiplab(size = 1, offset = 0.1) +
+#  geom_facet(panel = "Mass (g)", data=tip_df, geom = geom_col, 
+#             aes(x = trip_df$Mass, color = tip_df$State), orientation = 'y', width = .6) +
+  geom_facet(panel = "Mass (g)", geom = geom_col, 
+             aes(x = trip_df$Mass, color = tip_df$State), orientation = 'y', width = .6) +
+  geom_facet(panel = "HWI", data=tip_df, geom = geom_col, 
+             aes(x = tip_df$HWI, color = tip_df$State), orientation = 'y', width = .6) +
+labs(
+  title = "Raptor Clade: CRB",
+  subtitle = "with Mass, HWI"
+) +
+theme_tree2(legend.position=c(.05, .85))
+
+# ==== 7. Preview ====
+base_plot
+
+
+# ==== 5. Save as SVG ====
+svglite::svglite(
+  filename = "Figures/Figure_2X_CRB_Raptors.svg",
+  width    = 5,    # inches
+  height   = 5      # inches
+)
+
+print(base_plot)
+dev.off()
+
