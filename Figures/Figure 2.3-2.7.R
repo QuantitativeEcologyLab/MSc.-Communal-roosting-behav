@@ -13,7 +13,7 @@ library(scales)
 
 # Load data and tree #---------------------------------------------------------#
 Bird_data_clean <- read_csv("Chapters/Bird_data_clean.csv")
-load("Chapters/Consensus_Tree.Rda") #loads "phylogeny"
+load("Models/Consensus_Tree.Rda") #loads "phylogeny"
 
 # Keep only matching species
 tree <- keep.tip(phylogeny, phylogeny$tip.label[phylogeny$tip.label %in% Bird_data_clean$Species])
@@ -119,46 +119,38 @@ dev.off()
 
 ########### PERCENTAGE CRB PER TROPHIC LEVEL #############
 # Calculate percentage of species by Trophic_level and CRB_Final
+library(scales)
 df_summary <- Bird_data_clean %>%
   group_by(Trophic_level, CRB_Final) %>%
-  summarise(count = n(), .groups = 'drop') 
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(
+    CRB_Final = 
+  )
 
-fill_colors <- c(primary_colors, lighter_colors)
-names(fill_colors) <- c(
-  paste0("primary_colors[", seq_along(primary_colors), "]"),
-  paste0("lighter_colors[", seq_along(lighter_colors), "]")
-)
-
-
-df_summary$fill_group <- mapply(function(troph, crb) {
-  idx <- as.integer(factor(troph, levels = unique(df_summary$Trophic_level)))
-  if (crb == 1) {
-    paste0("primary_colors[", idx, "]")
-  } else {
-    paste0("lighter_colors[", idx, "]")
-  }
-}, df_summary$Trophic_level, df_summary$CRB_Final)
-
-n <- length(primary_colors)
-legend_labels <- c(rep("Absence", n), rep("Presence", n))  # or "Lighter"/"Darker"
-
-Fig2.5 <- ggplot(df_summary, aes(x = Trophic_level, y = count, fill = fill_group)) +
+Fig2.5 <- ggplot( df_summary, 
+  aes(x = Trophic_level,
+      y = count, 
+      fill = factor(CRB_Final)
+      )) +
   geom_col(position = "fill") +  # fill makes it 100% stacked
-  scale_y_continuous(labels = percent_format()) +
   scale_fill_manual(
-    values = fill_colors,
-    labels = legend_labels,
-    name = ""   # or "CRB Status"
-  ) +
+    values = c(primary_colors[1], 
+               primary_colors[2]),
+    labels = c("Absence", "Presence"),
+    name = "" ) +
+  scale_y_continuous(labels = label_percent() )+
   labs(
     title = "CRB Prevalence by Trophic Level",
     x = "",
-    y = "Percentage",
+    y = "",
     fill = "CRB_Final") +
-  theme_classic()+
+  theme_classic() +
   theme(
-    plot.title = element_text(hjust = 0.5)  # Centers the title
-  )
+        plot.title    = element_text(hjust = 0.5, size=16),
+        axis.text.x  = element_text(angle = 45, hjust = 0.5, vjust = 0.5, size=16),
+        axis.text.y = element_text(size=16),
+        legend.position = "right",
+        legend.text = element_text(size=16))  # Centers the title
 
 ggsave(
   filename ="Figures/Figure 2.5 Prevalence of CRB per Trophic Level.png",
