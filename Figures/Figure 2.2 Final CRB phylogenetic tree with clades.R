@@ -218,13 +218,6 @@ add_phylopic_base(
 dev.off()
 
 
-
-
-
-
-
-
-
 #Version for printing
 png(
   filename = "Figures/Figure 2.2 trial1.png",

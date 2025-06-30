@@ -1,5 +1,6 @@
 # install.packages("geiger")   # if you don’t have it
 library(geiger)
+library(loo)
 library(dplyr)
 library('phytools')
 library('ape')
@@ -94,48 +95,9 @@ dim(sub_subset)
 dim(A_subset)
 
 
-#Test model Pagels lambda above from physig
-test_model_phyl_subset <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 8,   
-  cores = 8,
-  thin=1000
-)
-
-summary(test_model_phyl_subset)
-plot(test_model_phyl_subset)
-
-
-
-
-test_model_phyl_subset_100 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 8,   
-  cores = 8,
-  thin=100
-)
-
-
-summary(test_model_phyl_subset_100)
-plot(test_model_phyl_subset_100)
-
-
-
-
-
-#40 chains and 1000 thin#
-test_model_phyl_subset_40 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
+#Null model with phylogeny only 
+Null_model <- brm(
+  CRB_Final ~ 1+ (1|gr(phylogeny, cov = A_subset)),
   data = sub_subset,
   data2 = list(A_subset = A_subset),
   family = bernoulli,
@@ -145,31 +107,13 @@ test_model_phyl_subset_40 <- brm(
   cores = 40,
   thin=1000
 )
-pushover(message = "Model 40 chains 1000 thin finished")
-summary(test_model_phyl_subset_40)
-plot(test_model_phyl_subset_40)
 
-#40 chains and 100 thin#
-test_model_phyl_subset_40_2 <- brm(
-  CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
-  data = sub_subset,
-  data2 = list(A_subset = A_subset),
-  family = bernoulli,
-  iter = 1e5,
-  warmup = 5e4,
-  chains = 40,   
-  cores = 40,
-  thin=100
-)
-pushover(message = "Model 40 chains 100 thin finished")
+summary(Null_model)
+plot(Null_model)
+saveRDS(Null_model,
+        file="Models/Null_model.rds")
 
-summary(test_model_phyl_subset_40_2)
-plot(test_model_phyl_subset_40_2)
-
-
-
-
-#model no phylo for priors#
+#Model no phylo for priors
 test_model_nophyl <- brm(
   CRB_Final ~ mass_kg + Trophic_level + HWI,
   data = sub_subset,
@@ -209,7 +153,8 @@ priors <- c(
   set_prior("normal(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
   set_prior("normal(0.03, 0.05)", coef = "HWI", class = "b")
 )
-#Option B using cauchy priors - using this one
+
+#Option B using cauchy priors. It was not converging
 priors <- c(
   set_prior("cauchy(-0.84, 1.15)", class = "Intercept"),
   set_prior("cauchy(0.19, 0.55)", coef = "mass_kg", class = "b"),
@@ -219,7 +164,18 @@ priors <- c(
   set_prior("cauchy(0.03, 0.05)", coef = "HWI", class = "b")
 )
 
-#Test model 40 chains 1000 thin WITH PRIORS
+#Option C using t student to promotoe convergence
+priors <- c(
+  set_prior("cauchy(-0.84, 1.15)", class = "Intercept"),
+  set_prior("cauchy(0.19, 0.55)", coef = "mass_log", class = "b"),
+  set_prior("cauchy(0.53, 0.85)", coef = "Trophic_levelHerbivore", class = "b"),
+  set_prior("cauchy(0.71, 1.00)", coef = "Trophic_levelOmnivore", class = "b"),
+  set_prior("cauchy(-0.05, 3.80)", coef = "Trophic_levelScavenger", class = "b"),
+  set_prior("cauchy(0.03, 0.05)", coef = "HWI_z", class = "b")
+)
+
+#Model 1 with Pagels lambda included from physig calculation
+#Model 40 chains 1000 thin WITH PRIORS
 test_model_phyl_subset_40_PRIORS <- brm(
   CRB_Final ~ mass_kg + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset)),
   data = sub_subset,
@@ -236,35 +192,103 @@ pushover(message = "Model 40 chains 1000 PRIORS thin finished")
 summary(test_model_phyl_subset_40_PRIORS)
 plot(test_model_phyl_subset_40_PRIORS)
 
+saveRDS(test_model_phyl_subset_40_PRIORS,
+        file="Models/test_model_phyl_subset_40_PRIORS.rds")
 
 
 
 
 
+#Model comparison for null model vs global model
+test_model_phyl_subset_40_PRIORS <- readRDS("Models/test_model_phyl_subset_40_PRIORS.rds")
+Null_model <- readRDS("Models/Null_model.rds")
 
 
+#Redo from here
+#fit a light model to compare becuase the chains were not saved before
+light_fit <- brm(CRB_Final ~ mass_kg + Trophic_level + HWI +
+                   (1 | gr(phylogeny, cov = A_subset)),
+                 data = sub_subset,
+                 data2 = list(A_subset = A_subset),
+                 family = bernoulli,
+                 prior = priors,
+                 chains = 4, cores = 4, iter = 4000, warmup = 2000,
+                 save_pars = save_pars(all = TRUE)   # keep latent draws!
+                 )
+
+light_fit <- add_criterion(light_fit, "loo", moment_match = TRUE)
+summary(light_fit)
 
 
-# Subset the phylogenetic covariance matrix FOR BROWNIAN. WE DONT NEED THIS
-A <- ape::vcv.phylo(phylogeny)
+#Waic is working but its not ideal bc values are greater thjan 0.4 and loo is recommended
+light_fit  <- add_criterion(light_fit, "waic")
+Null_model <- add_criterion(Null_model, "waic")
+test_model_phyl_subset_40_PRIORS <- add_criterion(test_model_phyl_subset_40_PRIORS, "waic")
+summary(test_model_phyl_subset_40_PRIORS)
 
-A_subset_Brownian <- A[selected_species, selected_species]
-
-#Test model Brownian - Pagel 1
-test_model_phyl_subset_Brownian <- brm(
-  CRB_Final ~ Mass + Trophic_level + HWI + (1 | gr(phylogeny, cov = A_subset_Brownian)),
-  data = sub_subset,
-  data2 = list(A_subset_Brownian = A_subset_Brownian),
-  family = bernoulli,
-  iter = 1e4,
-  warmup = 5e3,
-  chains = 8,   
-  cores = 8     
+#compare full and null
+loo::loo_compare(
+  x = list(
+    full_model = test_model_phyl_subset_40_PRIORS$criteria$waic,
+    null_model = Null_model$criteria$waic
+  )
 )
 
-summary(test_model_phyl_subset_Brownian)
-plot(test_model_phyl_subset_Brownian)
+#compare light and null
+loo::loo_compare(
+  x = list(
+    full_model = light_fit$criteria$waic,
+    null_model = Null_model$criteria$waic
+  )
+)
 
 
-  
-  
+#loo wasnt working on my full moodel so I was suggested to rescale and refit to avoid divergent transitions..
+sub_subset <- sub_subset %>%
+  mutate(
+    mass_log = scale(log(mass_kg)),
+    HWI_z    = scale(HWI)
+  )
+
+
+
+
+
+light_fit <- brm(
+  CRB_Final ~ mass_log + Trophic_level + HWI_z +
+    (1 | gr(phylogeny, cov = A_subset)),
+  data      = sub_subset,
+  data2     = list(A_subset = A_subset),
+  family    = bernoulli,
+  prior     = priors,
+  chains    = 4,
+  iter      = 4000,
+  warmup    = 2000,
+  cores     = 4,
+  save_pars = save_pars(all = TRUE),
+  control   = list(adapt_delta = 0.99)  # helps remove divergences
+)
+
+
+light_fit <- add_criterion(light_fit, "loo", moment_match = TRUE)
+
+
+
+ll <- log_lik(light_fit)
+summary(as.vector(ll))  # should show no NaN or -Inf
+
+#try with t student
+
+
+priors <- c(
+  set_prior("student_t(3, -0.84, 1.15)", class = "Intercept"),
+  set_prior("student_t(3, 0.19, 0.55)", class = "b", coef = "mass_log"),
+  set_prior("student_t(3, 0.53, 0.85)", class = "b", coef = "Trophic_levelHerbivore"),
+  set_prior("student_t(3, 0.71, 1.00)", class = "b", coef = "Trophic_levelOmnivore"),
+  set_prior("student_t(3, -0.05, 3.80)", class = "b", coef = "Trophic_levelScavenger"),
+  set_prior("student_t(3, 0.03, 0.05)", class = "b", coef = "HWI_z"),
+  set_prior("student_t(3, 0, 2.5)", class = "sd", group = "phylogeny")  # Random effect
+)
+
+#Im refitting with t student and see if divergences persist
+
