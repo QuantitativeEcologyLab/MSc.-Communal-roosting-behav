@@ -13,7 +13,7 @@ library(scales)
 
 # Load data and tree #---------------------------------------------------------#
 Bird_data_clean <- read_csv("Chapters/Bird_data_clean.csv")
-load("Chapters/Consensus_Tree.Rda") #loads "phylogeny"
+load("Models/Consensus_Tree.Rda") #loads "phylogeny"
 
 # Keep only matching species
 tree <- keep.tip(phylogeny, phylogeny$tip.label[phylogeny$tip.label %in% Bird_data_clean$Species])
