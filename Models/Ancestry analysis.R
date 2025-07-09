@@ -132,7 +132,7 @@ anc_list <- future_map(1:tree$Nnode, compute_node, tree = tree, x = x, .progress
 
 #Save object
 saveRDS(anc_list, file = "C:/Users/sandracd/OneDrive - UBC (1)/PhD proposal/Chapter 2/Models/anc_list.rds")
-anc_list <- readRDS("anc_list.rds")
+anc_list <- readRDS("Models/anc_list.rds")
 
 # Convert to matrix
 anc_local <- do.call(rbind, anc_list)
@@ -150,7 +150,7 @@ mtext("ARD model – circular layout", line = -1, adj = 0)
 
 #Plot version 2
 #Plot and save
-png("C:/Users/sandracd/OneDrive - UBC (1)/PhD proposal/Chapter 2/Models/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
+png("Figures/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
 
 # Custom state colors
 state_colors <- c("cornsilk1", "deeppink4")  # for 0 and 1
@@ -159,7 +159,7 @@ state_colors <- c("cornsilk1", "deeppink4")  # for 0 and 1
 plotTree(tree,
          type = "fan",
          ftype = "i", # italic font 
-         fsize = 0.2, # font size tip label
+         fsize = 0.1, # font size tip label
          offset = 0.5, 
          mar = rep(0, 4), 
          lwd = 1)
@@ -180,9 +180,210 @@ tiplabels(pie = to.matrix(x[tree$tip.label], levels(x)),
 # Reset frame
 par(fg = "black")
 
+# Add legend
+legend("topright",            
+       legend = c("Absence", "Presence"),
+       fill = state_colors,
+       border = "black",
+       bty = "n",               
+       cex = 0.8,
+       title = "CRB")
+
 # Add panel label
 mtext("b) ARD model (\"local\")", line = 0, adj = 0)
 dev.off()
+
+
+
+#subset on accipiters
+library(ape)
+library(phytools)
+
+# Your full tree: 'tree'
+# Your trait data: 'trait_data', with a column for Family and Species
+
+# Step 1: Get species in Accipitridae
+accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
+
+# Step 2: Check which of these are in the tree
+accip_species <- accip_species[accip_species %in% tree$tip.label]
+
+# Step 3: Get MRCA of these species
+mrca_node <- getMRCA(tree, accip_species)
+
+# Step 4: Extract the clade
+accip_tree <- extract.clade(tree, node = mrca_node)
+
+# Step 5: Plot fan chart for Accipitridae
+plotTree(accip_tree,
+         type = "fan",
+         ftype = "i",
+         fsize = 0.4,
+         lwd = 1,
+         offset = 0.5,
+         mar = rep(0, 4))
+title("Accipitridae Clade")
+
+
+rownames(anc_local) <- paste0("node_", seq_len(tree$Nnode) + Ntip(tree))
+ancestor_node_labels <- paste0("node_", node_map[, 2])
+anc_accip <- anc_local[ancestor_node_labels, , drop = FALSE]
+
+
+#Plot and save
+png("Figures/Ancestry analysis Accipiters.png", width = 2000, height = 2000, res = 300)
+# Plot
+plotTree(accip_tree,
+         type = "fan",
+         ftype = "i",
+         fsize = 0.4,
+         lwd = 1,
+         offset = 0.5,
+         mar = rep(0, 4))
+title("Accipitridae Clade")
+
+# Use your CRB state colors
+state_colors <- c("cornsilk1", "deeppink4")
+
+# Transparent plotting for clean overlay
+par(fg = "transparent")
+
+# Node pie charts
+nodelabels(pie = anc_accip,
+           piecol = state_colors,
+           cex = 0.2)
+
+# Reset frame color
+par(fg = "black")
+dev.off()
+
+
+
+#Number of independent transitions under parsimony assumption
+library(phytools)
+library(ape)
+
+# STEP 1: Ensure your binary trait is a named vector of tip states
+# For example, from your dataset:
+x <- setNames(sub_clean$CRB_Final, sub_clean$Species)
+
+# Ensure the species names in x match those in your tree
+x <- x[tree$tip.label]
+
+# STEP 2: Run stochastic character mapping (simulate transitions)
+set.seed(123)  # for reproducibility
+simmap_trees <- make.simmap(tree, x, model = "ARD", nsim = 100)
+
+# STEP 3: Summarize transitions
+summary_simmap <- describe.simmap(simmap_trees)
+
+# Print the number of transitions
+summary_simmap$counts
+
+
+#Identify transition clades
+library(ape)
+library(dplyr)
+library(phytools)
+
+# Step 1: Identify most probable state at each node
+node_states <- apply(anc_local, 1, which.max) - 1  # -1 to map 1=0, 2=1
+
+# Step 2: Build full edge list with ancestral and descendant node states
+# Edge matrix from phylo object
+edge_df <- as.data.frame(tree$edge)
+colnames(edge_df) <- c("ancestor", "descendant")
+
+# Add state for ancestor
+edge_df$descendant_state <- NA
+
+# For internal nodes (descendants > number of tips)
+internal_idx <- edge_df$descendant > Ntip(tree)
+edge_df$descendant_state[internal_idx] <- node_states[edge_df$descendant[internal_idx] - Ntip(tree)]
+
+# For tips
+tip_idx <- !internal_idx
+tip_labels <- tree$tip.label[edge_df$descendant[tip_idx]]
+edge_df$descendant_state[tip_idx] <- x[tip_labels]
+
+# Add state for descendant
+edge_df$descendant_state <- ifelse(edge_df$descendant > Ntip(tree),
+                                   node_states[edge_df$descendant - Ntip(tree)],
+                                   x[tree$tip.label[edge_df$descendant]])
+
+# Step 3: Filter for transitions
+transitions <- edge_df %>%
+  filter(ancestor_state != descendant_state)
+
+# Step 4: Extract the descendant nodes that are transition origins
+transition_nodes <- unique(transitions$descendant)
+
+# Step 5: For each transition node, extract clade tip labels
+clade_changes <- lapply(transition_nodes, function(node) {
+  clade <- extract.clade(tree, node)
+  clade$tip.label
+})
+
+names(clade_changes) <- paste0("Node_", transition_nodes)
+
+# Optional: show example
+clade_changes[[1]]
+
+
+
+
+
+
+
+
+# Subset your data and tree
+accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
+accip_species <- accip_species[accip_species %in% tree$tip.label]
+mrca_node <- getMRCA(tree, accip_species)
+accip_tree <- extract.clade(tree, node = mrca_node)
+
+# Subset trait data for these species
+accip_data <- Bird_data[Bird_data$Species %in% accip_tree$tip.label, ]
+accip_data <- accip_data[match(accip_tree$tip.label, accip_data$Species), ]
+crb_state <- accip_data$CRB_Final
+
+# Set CRB tip colors
+crb_cols <- c("cornsilk1", "deeppink4")  # 0 = no, 1 = yes
+tip_colors <- crb_cols[crb_state + 1]
+
+# Plot tree with tip colors
+plotTree(accip_tree, type = "fan", ftype = "i", fsize = 0.4, lwd = 1,
+         offset = 0.5, mar = rep(0, 4))
+tiplabels(pch = 21, bg = tip_colors, cex = 1.2)
+title("Accipitridae CRB States")
+legend("topright", legend = c("No CRB", "CRB"), fill = crb_cols, cex = 0.8)
+
+library(phytools)
+
+# Create named vector of CRB for tips
+crb_vec <- setNames(accip_data$CRB_Final, accip_data$Species)
+
+# Estimate ancestral states
+fit_crb <- ace(crb_vec, accip_tree, type = "discrete", model = "ARD")
+
+#Plot and save
+png("Figures/Ancestry analysis Accipiters Ancestral state.png", width = 2000, height = 2000, res = 300)
+# Plot tree with pies for ancestral states
+plotTree(accip_tree, type = "fan", ftype = "i", fsize = 0.4)
+tiplabels(pch = 21, bg = tip_colors, cex = 1.2)
+nodelabels(pie = fit_crb$lik.anc, piecol = c("cornsilk1", "deeppink4"), cex = 0.2)
+title("Ancestral Reconstruction of CRB in Accipitridae")
+dev.off()
+
+
+
+
+
+
+
+
+
+
 
 
 
