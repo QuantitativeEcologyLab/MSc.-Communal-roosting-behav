@@ -30,7 +30,7 @@ lighter_colors <- as.character(lighter_colors)
 load("Models/Consensus_Tree.Rda")
 phylo <- phylogeny
 
-trait_data <- read_csv("C:/Users/Sandra/OneDrive - UBC/PhD proposal/Chapter 2/Updated database/Bird_data_clean.csv")
+trait_data <- read_csv("Data/Bird_data_clean.csv")
 
 # ==== 2. Prepare the Data ====
 # Use all species in the phylogeny
@@ -85,7 +85,7 @@ plot(
   cex = 0.1,
   label.offset = 0.7,
   #no.margin = TRUE,
-  main = "Evolution of Communal Roosting Behavior in Landbirds",
+  main = "",
   show.node.label = FALSE
 )
 
@@ -220,7 +220,7 @@ dev.off()
 
 #Version for printing
 png(
-  filename = "Figures/Figure 2.2 trial1.png",
+  filename = "Figures/Figure 2.2 Evolution of Communal Roosting Behaviour.png",
   width    = 30,     # inches
   height   = 24,     # inches
   units    = "in",
@@ -237,7 +237,7 @@ plot(
   cex = 0.3,
   label.offset = 0.7,
   #no.margin = TRUE,
-  main = "Evolution of Communal Roosting Behavior in Landbirds",
+  main = "",
   cex.main=4,
   show.node.label = FALSE
 )
