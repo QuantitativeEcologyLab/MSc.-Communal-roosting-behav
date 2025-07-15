@@ -1,4 +1,4 @@
-install.packages("furrr")  # if not already installed
+#install.packages("furrr")  # if not already installed
 library(furrr)
 library(future)
 plan(multisession, workers = 4)  # Adjust cores as needed
@@ -134,6 +134,24 @@ anc_list <- future_map(1:tree$Nnode, compute_node, tree = tree, x = x, .progress
 saveRDS(anc_list, file = "C:/Users/sandracd/OneDrive - UBC (1)/PhD proposal/Chapter 2/Models/anc_list.rds")
 anc_list <- readRDS("Models/anc_list.rds")
 
+
+# Get the root node number (i.e., node number, not index)
+root_node_number <- getMRCA(tree, tree$tip.label)
+
+# Convert to index used in anc_list (subtract number of tips)
+root_index <- root_node_number - Ntip(tree)
+
+# Retrieve the ancestral state probabilities
+root_probs <- anc_list[[root_index]]
+
+# Name the states
+names(root_probs) <- levels(x)
+
+# Print the result
+print(round(root_probs, 3))
+
+
+
 # Convert to matrix
 anc_local <- do.call(rbind, anc_list)
 rownames(anc_local) <- 1:tree$Nnode + Ntip(tree)
@@ -153,7 +171,7 @@ mtext("ARD model – circular layout", line = -1, adj = 0)
 png("Figures/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
 
 # Custom state colors
-state_colors <- c("cornsilk1", "deeppink4")  # for 0 and 1
+state_colors <- c("#66C2A5", "#FC8D62")  # for 0 and 1
 
 # Plot the tree with smaller tip label font
 plotTree(tree,
@@ -195,6 +213,9 @@ dev.off()
 
 
 
+
+
+
 #subset on accipiters
 library(ape)
 library(phytools)
@@ -214,36 +235,66 @@ mrca_node <- getMRCA(tree, accip_species)
 # Step 4: Extract the clade
 accip_tree <- extract.clade(tree, node = mrca_node)
 
+
+# # 1. Get the node number of the MRCA of Accipitridae
+# accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
+# accip_species <- accip_species[accip_species %in% tree$tip.label]
+# mrca_node <- getMRCA(tree, accip_species)
+# 
+# # 2. Get all descendant internal nodes of that MRCA
+# accip_nodes <- getDescendants(tree, mrca_node)
+# accip_nodes <- accip_nodes[accip_nodes > Ntip(tree)]  # keep only internal nodes
+# 
+# # 3. Convert to character labels to match rownames in anc_local
+# accip_node_labels <- as.character(accip_nodes)
+# 
+# # 4. Subset the full ancestral matrix to only those nodes
+# anc_accip <- anc_local[accip_node_labels, , drop = FALSE]
+
+
+
+# Get all internal nodes in accip_tree
+accip_node_ids <- (Ntip(accip_tree) + 1):(Ntip(accip_tree) + accip_tree$Nnode)
+
+# Map those to the original full tree's node numbers
+accip_node_labels <- matchNodes(accip_tree, tree)[,2]  # columns: accip_tree node, original tree node
+
+# Keep only rows that exist in anc_local
+valid_nodes <- accip_node_labels[accip_node_labels %in% rownames(anc_local)]
+
+# Subset and reorder the ancestral reconstructions
+anc_accip <- anc_local[as.character(valid_nodes), , drop = FALSE]
+rownames(anc_accip) <- accip_node_ids[accip_node_labels %in% rownames(anc_local)]  # match to accip_tree
+
+
+
+
+
 # Step 5: Plot fan chart for Accipitridae
 plotTree(accip_tree,
-         type = "fan",
+         #type = "fan",
          ftype = "i",
          fsize = 0.4,
          lwd = 1,
          offset = 0.5,
          mar = rep(0, 4))
 title("Accipitridae Clade")
-
-
-rownames(anc_local) <- paste0("node_", seq_len(tree$Nnode) + Ntip(tree))
-ancestor_node_labels <- paste0("node_", node_map[, 2])
-anc_accip <- anc_local[ancestor_node_labels, , drop = FALSE]
 
 
 #Plot and save
 png("Figures/Ancestry analysis Accipiters.png", width = 2000, height = 2000, res = 300)
 # Plot
 plotTree(accip_tree,
-         type = "fan",
+         #type = "fan",
          ftype = "i",
          fsize = 0.4,
          lwd = 1,
          offset = 0.5,
          mar = rep(0, 4))
-title("Accipitridae Clade")
+title("")
 
 # Use your CRB state colors
-state_colors <- c("cornsilk1", "deeppink4")
+state_colors <- c("#66C2A5", "#FC8D62")  # for 0 and 1
 
 # Transparent plotting for clean overlay
 par(fg = "transparent")
@@ -252,6 +303,13 @@ par(fg = "transparent")
 nodelabels(pie = anc_accip,
            piecol = state_colors,
            cex = 0.2)
+
+tiplabels(
+  pie = to.matrix(x[accip_tree$tip.label], levels(x)),
+  piecol = state_colors,
+  cex = 0.2,
+  offset = 0.5
+)
 
 # Reset frame color
 par(fg = "black")
