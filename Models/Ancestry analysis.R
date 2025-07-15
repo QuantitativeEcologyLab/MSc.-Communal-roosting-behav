@@ -150,23 +150,13 @@ names(root_probs) <- levels(x)
 # Print the result
 print(round(root_probs, 3))
 
-
-
 # Convert to matrix
 anc_local <- do.call(rbind, anc_list)
 rownames(anc_local) <- 1:tree$Nnode + Ntip(tree)
 colnames(anc_local) <- levels(x)
 
-
-#Plot version 1
-plotTree(tree, type = "fan", ftype = "off", mar = c(1,1,1,1), lwd = 0.5)
-par(fg = "transparent")
-nodelabels(pie = anc_local, cex = 0.3, piecol = hcl.colors(n = 2))
-par(fg = "black")
-mtext("ARD model – circular layout", line = -1, adj = 0)
-
-
-#Plot version 2
+############### PLOT ALL DATA AND ANCESTRAL STATE ###############
+#Plot version 
 #Plot and save
 png("Figures/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
 
@@ -215,13 +205,8 @@ dev.off()
 
 
 
-
-#subset on accipiters
-library(ape)
-library(phytools)
-
-# Your full tree: 'tree'
-# Your trait data: 'trait_data', with a column for Family and Species
+############### PLOT ACCIPITER DATA AND ANCESTRAL STATE ###############
+#Plot subset on Accipiters
 
 # Step 1: Get species in Accipitridae
 accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
@@ -234,24 +219,6 @@ mrca_node <- getMRCA(tree, accip_species)
 
 # Step 4: Extract the clade
 accip_tree <- extract.clade(tree, node = mrca_node)
-
-
-# # 1. Get the node number of the MRCA of Accipitridae
-# accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
-# accip_species <- accip_species[accip_species %in% tree$tip.label]
-# mrca_node <- getMRCA(tree, accip_species)
-# 
-# # 2. Get all descendant internal nodes of that MRCA
-# accip_nodes <- getDescendants(tree, mrca_node)
-# accip_nodes <- accip_nodes[accip_nodes > Ntip(tree)]  # keep only internal nodes
-# 
-# # 3. Convert to character labels to match rownames in anc_local
-# accip_node_labels <- as.character(accip_nodes)
-# 
-# # 4. Subset the full ancestral matrix to only those nodes
-# anc_accip <- anc_local[accip_node_labels, , drop = FALSE]
-
-
 
 # Get all internal nodes in accip_tree
 accip_node_ids <- (Ntip(accip_tree) + 1):(Ntip(accip_tree) + accip_tree$Nnode)
@@ -267,18 +234,6 @@ anc_accip <- anc_local[as.character(valid_nodes), , drop = FALSE]
 rownames(anc_accip) <- accip_node_ids[accip_node_labels %in% rownames(anc_local)]  # match to accip_tree
 
 
-
-
-
-# Step 5: Plot fan chart for Accipitridae
-plotTree(accip_tree,
-         #type = "fan",
-         ftype = "i",
-         fsize = 0.4,
-         lwd = 1,
-         offset = 0.5,
-         mar = rep(0, 4))
-title("Accipitridae Clade")
 
 
 #Plot and save
@@ -318,9 +273,6 @@ dev.off()
 
 
 #Number of independent transitions under parsimony assumption
-library(phytools)
-library(ape)
-
 # STEP 1: Ensure your binary trait is a named vector of tip states
 # For example, from your dataset:
 x <- setNames(sub_clean$CRB_Final, sub_clean$Species)
@@ -340,10 +292,6 @@ summary_simmap$counts
 
 
 #Identify transition clades
-library(ape)
-library(dplyr)
-library(phytools)
-
 # Step 1: Identify most probable state at each node
 node_states <- apply(anc_local, 1, which.max) - 1  # -1 to map 1=0, 2=1
 
@@ -388,64 +336,173 @@ names(clade_changes) <- paste0("Node_", transition_nodes)
 clade_changes[[1]]
 
 
+############### ANCESTRAL STATE FOR PREDICTOR VARIABLES ###############
+#Ancestral state reconstruction for HWI mass and trophic level
+# Clean and name the trait vectors
+hwi_vec <- setNames(sub_clean$HWI, sub_clean$Species)
+mass_vec <- setNames(sub_clean$Mass / 1000, sub_clean$Species)  # convert to kg if needed
 
-
-
-
-
-
-# Subset your data and tree
-accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
-accip_species <- accip_species[accip_species %in% tree$tip.label]
-mrca_node <- getMRCA(tree, accip_species)
-accip_tree <- extract.clade(tree, node = mrca_node)
-
-# Subset trait data for these species
-accip_data <- Bird_data[Bird_data$Species %in% accip_tree$tip.label, ]
-accip_data <- accip_data[match(accip_tree$tip.label, accip_data$Species), ]
-crb_state <- accip_data$CRB_Final
-
-# Set CRB tip colors
-crb_cols <- c("cornsilk1", "deeppink4")  # 0 = no, 1 = yes
-tip_colors <- crb_cols[crb_state + 1]
-
-# Plot tree with tip colors
-plotTree(accip_tree, type = "fan", ftype = "i", fsize = 0.4, lwd = 1,
-         offset = 0.5, mar = rep(0, 4))
-tiplabels(pch = 21, bg = tip_colors, cex = 1.2)
-title("Accipitridae CRB States")
-legend("topright", legend = c("No CRB", "CRB"), fill = crb_cols, cex = 0.8)
-
-library(phytools)
-
-# Create named vector of CRB for tips
-crb_vec <- setNames(accip_data$CRB_Final, accip_data$Species)
+# Match to tree
+hwi_vec <- hwi_vec[tree$tip.label]
+mass_vec <- mass_vec[tree$tip.label]
 
 # Estimate ancestral states
-fit_crb <- ace(crb_vec, accip_tree, type = "discrete", model = "ARD")
+hwi_anc <- fastAnc(tree, hwi_vec)
+mass_anc <- fastAnc(tree, mass_vec)
 
-#Plot and save
-png("Figures/Ancestry analysis Accipiters Ancestral state.png", width = 2000, height = 2000, res = 300)
-# Plot tree with pies for ancestral states
-plotTree(accip_tree, type = "fan", ftype = "i", fsize = 0.4)
-tiplabels(pch = 21, bg = tip_colors, cex = 1.2)
-nodelabels(pie = fit_crb$lik.anc, piecol = c("cornsilk1", "deeppink4"), cex = 0.2)
-title("Ancestral Reconstruction of CRB in Accipitridae")
+# Get root node (first ancestral node is always the first index)
+hwi_root <- hwi_anc[1]
+mass_root <- mass_anc[1]
+
+cat("Root HWI estimate:", round(hwi_root, 3), "\n")
+cat("Root Mass estimate (kg):", round(mass_root, 3), "\n")
+
+
+# === Visualize HWI ===
+# Step 1: Prune the tree
+accip_tree <- drop.tip(tree, setdiff(tree$tip.label, accip_species))
+
+# Step 2: Subset the trait vector (HWI)
+accip_hwi <- hwi_vec[names(hwi_vec) %in% accip_species]
+
+# Step 3: Remap using contMap without plotting
+accip_hwi_map <- contMap(accip_tree, accip_hwi, plot = FALSE, res = 3)
+
+# Step 4: Apply the same green-to-orange custom color gradient
+custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
+accip_hwi_map$cols[] <- custom_palette(length(accip_hwi_map$cols))
+
+# Step 5: Plot fan tree with custom colors
+plot(accip_hwi_map,
+     #type = "fan",
+     fsize = 0.4,
+     lwd = 2,
+     outline = FALSE,
+     legend = FALSE,
+     main = "Accipitridae HWI — Custom Gradient")
+
+# Manually add a color bar in bottom left
+add.color.bar(
+  leg = 0.2 * max(nodeHeights(accip_tree)),   # length of legend bar
+  cols = accip_hwi_map$cols,
+  title = "HWI",
+  lims = round(range(accip_hwi, na.rm = TRUE), 2),
+  digits = 2,
+  prompt = FALSE,
+  x = 0,
+  y = -0.03 * max(nodeHeights(accip_tree)),   # position below tree
+  lwd = 10,
+  fsize = 0.6,       # <--- font size
+  subtitle = ""
+)
+
+
+# === Visualize mass ===
+# Step 1: Prune the tree to only Accipitridae
+accip_tree <- drop.tip(tree, setdiff(tree$tip.label, accip_species))
+
+# Step 2: Create a trait vector for mass
+accip_mass <- mass_vec[names(mass_vec) %in% accip_species]
+
+# Generate contMap object for mass
+accip_mass_map <- contMap(accip_tree, accip_mass, plot = FALSE, res = 3)
+
+# Custom color gradient: green (low) to orange (high)
+custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
+
+# Apply the custom color scale correctly
+n_colors <- length(accip_mass_map$cols)
+accip_mass_map$cols[] <- custom_palette(n_colors)
+
+# Plot using the fan layout
+plot(accip_mass_map,
+     #type = "fan",
+     fsize = 0.4,
+     lwd = 2,
+     outline = FALSE,
+     legend = 0.7 * max(nodeHeights(accip_tree)),
+     main = "Accipitridae Mass (kg) — Custom Gradient")
+
+
+
+# Plot the fan tree without the default legend
+plot(accip_mass_map,
+     #type = "fan",
+     fsize = 0.5,
+     lwd = 2,
+     outline = FALSE,
+     legend = FALSE,
+     main = "Accipitridae Mass (kg) — Custom Gradient")
+
+# Manually add a color bar in bottom left
+add.color.bar(
+  leg = 0.2 * max(nodeHeights(accip_tree)),   # length of legend bar
+  cols = accip_mass_map$cols,
+  title = "Mass (kg)",
+  lims = round(range(accip_mass, na.rm = TRUE), 2),
+  digits = 2,
+  prompt = FALSE,
+  x = 0,
+  y = -0.03 * max(nodeHeights(accip_tree)),   # position below tree
+  lwd = 10,
+  fsize = 0.6,       # <--- font size
+  subtitle = ""
+)
+
+
+
+# Save to file
+png("Figures/Ancestral state Accipitridae_HWI_Mass.png", width = 3000, height = 1500, res = 300)
+
+# Set up side-by-side panels
+par(mfrow = c(1, 2), mar = c(1, 6, 4, 1))  # more space on left for labels
+
+# --- Panel A: HWI ---
+plot(accip_hwi_map,
+     #type = "fan",
+     fsize = 0.3,
+     lwd = 1.5,
+     outline = FALSE,
+     legend = FALSE,
+     main = "A. Accipitridae — HWI")
+
+mtext("A", side = 3, line = -1, adj = 0.05, cex = 1, font = 2)  # moved down
+
+add.color.bar(
+  leg = 0.2 * max(nodeHeights(accip_tree)),
+  cols = accip_hwi_map$cols,
+  title = "HWI",
+  lims = round(range(accip_hwi, na.rm = TRUE), 2),
+  digits = 2,
+  prompt = FALSE,
+  x = 0,
+  y = -0.03 * max(nodeHeights(accip_tree)),
+  lwd = 10,
+  fsize = 0.6
+)
+
+# --- Panel B: Mass ---
+plot(accip_mass_map,
+     #type = "fan",
+     fsize = 0.3,
+     lwd = 1.5,
+     outline = FALSE,
+     legend = FALSE,
+     main = "B. Accipitridae — Mass (kg)")
+
+mtext("B", side = 3, line = -1, adj = 0.05, cex = 1, font = 2)  # moved down
+
+add.color.bar(
+  leg = 0.2 * max(nodeHeights(accip_tree)),
+  cols = accip_mass_map$cols,
+  title = "Mass (kg)",
+  lims = round(range(accip_mass, na.rm = TRUE), 2),
+  digits = 2,
+  prompt = FALSE,
+  x = 0,
+  y = -0.03 * max(nodeHeights(accip_tree)),
+  lwd = 10,
+  fsize = 0.6
+)
+# Finish saving
 dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
