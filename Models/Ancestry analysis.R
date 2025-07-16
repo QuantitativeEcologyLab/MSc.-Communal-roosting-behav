@@ -1,14 +1,15 @@
-#install.packages("furrr")  # if not already installed
+#install.packages("furrr")  
 library(furrr)
 library(future)
 plan(multisession, workers = 4)  # Adjust cores as needed
 library(phytools)
 library(dplyr)
-library(furrr)
 library(future)
 library(geiger)   # for fitMk
 library(ape)
 library(tidyr)
+#install.packages("scico")
+library(scico) #C"scico"library(scico) #Color palette
 
 
 ############PREPARE THE DATA FOR ANALYSIS###############
@@ -369,8 +370,9 @@ accip_hwi <- hwi_vec[names(hwi_vec) %in% accip_species]
 accip_hwi_map <- contMap(accip_tree, accip_hwi, plot = FALSE, res = 3)
 
 # Step 4: Apply the same green-to-orange custom color gradient
-custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
-accip_hwi_map$cols[] <- custom_palette(length(accip_hwi_map$cols))
+# custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
+n_hwi <- length(accip_hwi_map$cols)
+accip_hwi_map$cols[] <- scico(n_hwi, palette = "imola")
 
 # Step 5: Plot fan tree with custom colors
 plot(accip_hwi_map,
@@ -404,15 +406,24 @@ accip_tree <- drop.tip(tree, setdiff(tree$tip.label, accip_species))
 # Step 2: Create a trait vector for mass
 accip_mass <- mass_vec[names(mass_vec) %in% accip_species]
 
+# Step 3: transform mass vector
+accip_mass_log <- log10(accip_mass)  # log-transform mass
+
+
 # Generate contMap object for mass
-accip_mass_map <- contMap(accip_tree, accip_mass, plot = FALSE, res = 3)
+accip_mass_map <- contMap(accip_tree, accip_mass_log, plot = FALSE, res = 3)
 
-# Custom color gradient: green (low) to orange (high)
-custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
+# Apply custom color palette (e.g., from scico)
+n_mass <- length(accip_mass_map$cols)
+accip_mass_map$cols[] <- (scico(n_mass, palette = "imola"))
 
-# Apply the custom color scale correctly
-n_colors <- length(accip_mass_map$cols)
-accip_mass_map$cols[] <- custom_palette(n_colors)
+
+# # Custom color gradient: green (low) to orange (high)
+# custom_palette <- colorRampPalette(c("#66C2A5", "#FC8D62"))
+
+# # Apply the custom color scale correctly
+# n_colors <- length(accip_mass_map$cols)
+# accip_mass_map$cols[] <- custom_palette(n_colors)
 
 # Plot using the fan layout
 plot(accip_mass_map,
@@ -469,7 +480,7 @@ plot(accip_hwi_map,
 mtext("A", side = 3, line = -1, adj = 0.05, cex = 1, font = 2)  # moved down
 
 add.color.bar(
-  leg = 0.2 * max(nodeHeights(accip_tree)),
+  leg = 0.3 * max(nodeHeights(accip_tree)),
   cols = accip_hwi_map$cols,
   title = "HWI",
   lims = round(range(accip_hwi, na.rm = TRUE), 2),
@@ -493,10 +504,10 @@ plot(accip_mass_map,
 mtext("B", side = 3, line = -1, adj = 0.05, cex = 1, font = 2)  # moved down
 
 add.color.bar(
-  leg = 0.2 * max(nodeHeights(accip_tree)),
+  leg = 0.4 * max(nodeHeights(accip_tree)),
   cols = accip_mass_map$cols,
-  title = "Mass (kg)",
-  lims = round(range(accip_mass, na.rm = TRUE), 2),
+  title = "log Mass (kg)",
+  lims = round(range(accip_mass_log, na.rm = TRUE), 2),
   digits = 2,
   prompt = FALSE,
   x = 0,
