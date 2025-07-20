@@ -68,14 +68,32 @@ phy_subset <- drop.tip(
 # Create a vector of species and trait data for the calculation
 crb_vec <- setNames(sub_subset$CRB_Final, sub_subset$Species)
 
-#Calculate phylogenetic signal
-sig <- phylosig(phy_subset, crb_vec, method="lambda", test=TRUE)
-sig$lambda      # ML‐estimate of Pagel’s λ
+############ CALCULATION OF PHYLOGENETIC SIGNAL ############
+# sig <- phylosig(phy_subset, crb_vec, method="lambda", test=TRUE)
+# sig$lambda      # ML‐estimate of Pagel’s λ
 
+#USING fitDiscrete for binary data
+library(geiger)
+
+# Step 1: Ensure unique species in sub_subset
+sub_unique <- sub_subset[!duplicated(sub_subset$Species), ]
+
+# Step 2: Keep only species that are in the phylogeny
+valid_species <- sub_unique$Species[sub_unique$Species %in% phy_subset$tip.label]
+sub_unique <- sub_unique[sub_unique$Species %in% valid_species, ]
+
+# Step 3: Create the named binary trait factor
+crb_factor <- setNames(as.factor(sub_unique$CRB_Final), sub_unique$Species)
+
+# Step 4: Fit Pagel's lambda using discrete model
+fit_obs <- fitDiscrete(phy_subset, crb_factor, model = "ARD", transform = "lambda")
+
+# Check output
+fit_obs$opt$lambda
 
 #Now use that value to Specify phylogenetic autocorrelation with Pagels lambda in the model
-# say you want λ = 0.7783954
-λ <- 0.7783954
+# say you want λ = 0.9014789
+λ <- 0.9014789
 
 # this returns a new "phylo" with all *internal* branch lengths multiplied by λ
 phy_lambda <- phytools::rescale(phylogeny, model="lambda", λ)
@@ -91,11 +109,73 @@ A_subset <- A_lambda[selected_species, selected_species]
 dim(sub_subset)
 dim(A_subset)
 
-  # # Try using a standardized correlation matrix instead
-  # A_cor <- vcv(phy_subset, corr = TRUE)
-  # # And make sure your data2 list and group variable match:
-  # sub_subset$phylo_name <- sub_subset$Species
-  # data2_list <- list(A_cor = A_cor)
+
+#Randomization test against observed lambda
+# --- 1. Prepare cleaned data 
+# Ensure one row per species
+sub_subset_unique <- sub_subset[!duplicated(sub_subset$Species), ]
+matched_species <- intersect(phy_subset$tip.label, sub_subset_unique$Species)
+
+# Prune tree and data
+phy_matched <- keep.tip(phy_subset, matched_species)
+sub_matched <- sub_subset_unique[sub_subset_unique$Species %in% matched_species, ]
+
+# Create named factor
+crb_factor <- setNames(as.factor(sub_matched$CRB_Final), sub_matched$Species)
+
+# --- 2. Fit observed model
+fit_obs <- fitDiscrete(phy_matched, crb_factor, model = "ARD", transform = "lambda")
+obs_lambda <- fit_obs$opt$lambda
+
+# --- 3. Run randomizations
+n_iter <- 1000
+rand_lambdas <- numeric(n_iter)
+set.seed(42)
+
+for (i in 1:n_iter) {
+  shuffled <- sample(as.character(crb_factor))  # shuffle trait values
+  names(shuffled) <- names(crb_factor)
+  
+  fit_rand <- tryCatch(
+    fitDiscrete(phy_matched, as.factor(shuffled), model = "ARD", transform = "lambda"),
+    error = function(e) return(NULL)
+  )
+  
+  rand_lambdas[i] <- if (!is.null(fit_rand)) fit_rand$opt$lambda else NA
+}
+
+# Remove NAs (in case any model fitting failed)
+rand_lambdas <- rand_lambdas[!is.na(rand_lambdas)]
+
+# --- 4. Compute p-value and quantiles
+p_val <- mean(rand_lambdas >= obs_lambda)
+
+# Compute 95th percentile
+lambda_95 <- quantile(rand_lambdas, 0.95)
+print(round(lambda_95, 3))
+quantile (rand_lambdas)
+
+# --- 5. Plot
+par(mar = c(5.5, 5.5, 4, 2))
+hist(rand_lambdas, breaks = 30, col = "grey", main = "Random values for Pagel's λ ", xlab = "λ")
+abline(v = obs_lambda, col = "red", lwd = 2)
+# abline(v = lambda_95, col = "blue", lwd = 2, lty = 2)
+text(obs_lambda, max(table(cut(rand_lambdas, breaks = 30))) * 0.9,
+     labels = paste("Observed λ =", round(obs_lambda, 3)), col = "red", pos = 2)
+# Add label
+# text(lambda_95, max(table(cut(rand_lambdas, breaks = 30))) * 0.8,
+#      labels = paste("95th %ile =", round(lambda_95, 3)),
+#      col = "blue", pos = 4)
+
+# --- 6. Report
+cat("Observed λ:", round(obs_lambda, 3), "\n")
+cat("Randomization p-value:", round(p_val, 4), "\n")
+
+
+
+
+
+
 
 ######### STEP 2 - NULL MODEL ########
 
@@ -182,8 +262,8 @@ summary(test_model_phyl_subset_40_PRIORS_trophic)
 plot(test_model_phyl_subset_40_PRIORS_trophic)
 
 #Save model
-saveRDS(test_model_phyl_subset_40_PRIORS,
-        file="Models/test_model_phyl_subset_40_PRIORS.rds")
+saveRDS(test_model_phyl_subset_40_PRIORS_trophic,
+        file="Models/test_model_phyl_subset_40_PRIORS_trophic.rds")
 
 
 
@@ -248,13 +328,39 @@ res_vec <- as.vector(Residuals_body_mass)
 # Attach to the dataframe
 sub_brain$Residuals_body_mass <- res_vec
 
+
+#base mnodel for brain prior
+base_model_no_phylo_brain <- brm(
+  CRB_Final ~ 0 + Trophic_level + mass_kg + HWI + Residuals_body_mass,  # no intercept, no random effects
+  data = sub_brain,
+  family = bernoulli(link = "logit"),
+  chains = 4,
+  cores = 4,
+  iter = 4000,
+  warmup = 2000,
+  save_pars = save_pars(all = TRUE),
+  seed = 123  # for reproducibility
+)
+
+summary(base_model_no_phylo_brain)
+priors_brain <- c(
+  prior(student_t(3, 0.03, 0.015), class = "b", coef = "HWI"),
+  prior(student_t(3, 0.27, 0.25), class = "b", coef = "mass_kg"),
+  prior(student_t(3, -0.59, 0.5), class = "b", coef = "Trophic_levelCarnivore"),
+  prior(student_t(3, -0.33, 0.5), class = "b", coef = "Trophic_levelHerbivore"),
+  prior(student_t(3, 0.09, 0.5), class = "b", coef = "Trophic_levelOmnivore"),
+  prior(student_t(3, -0.53, 1.5), class = "b", coef = "Trophic_levelScavenger"),
+  prior(student_t(3, 0.03, 0.1), class = "b", coef = "Residuals_body_mass")
+)
+
+
 #subset model w predictors and brain mass
 Model_3 <- brm(
   CRB_Final  ~ 0 + Trophic_level + mass_kg + HWI + Residuals_body_mass + (1|gr(phylogeny, cov = A_subset_brain)),
   data = sub_brain,   
   data2 = list(A_subset_brain = A_subset_brain),
   family = bernoulli,
-  prior = priors,
+  prior = priors_brain,
   iter = 1e6,
   warmup = 5e5,
   chains = 8,

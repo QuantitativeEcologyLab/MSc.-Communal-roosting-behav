@@ -156,6 +156,25 @@ anc_local <- do.call(rbind, anc_list)
 rownames(anc_local) <- 1:tree$Nnode + Ntip(tree)
 colnames(anc_local) <- levels(x)
 
+
+#estimate evolutionary time of first CRBs#
+# Set a probability threshold (e.g., 0.5 for majority support)
+threshold <- 0.5
+
+# Find all internal nodes with CRB = 1 support above threshold
+crb_present_nodes <- which(anc_local[, "1"] > threshold)
+
+# Get node ages (height from root)
+node_heights <- nodeHeights(tree)[crb_present_nodes, 1]
+
+# Identify the earliest origin (farthest from tips)
+earliest_crb_node <- crb_present_nodes[which.min(node_heights)]
+earliest_crb_age <- min(node_heights)
+
+cat("CRB likely evolved at least", round(earliest_crb_age, 2), "million years ago.\n")
+
+
+
 ############### PLOT ALL DATA AND ANCESTRAL STATE ###############
 #Plot version 
 #Plot and save

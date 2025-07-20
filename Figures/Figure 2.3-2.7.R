@@ -10,6 +10,7 @@ library(scales)
 library(ggnewscale)
 library(ggmosaic)
 library(scales)
+library(brms)
 
 # Load data and tree #---------------------------------------------------------#
 Bird_data_clean <- read_csv("Chapters/Bird_data_clean.csv")
@@ -127,6 +128,7 @@ df_summary <- Bird_data_clean %>%
     CRB_Final = 
   )
 
+
 Fig2.5 <- ggplot( df_summary, 
   aes(x = Trophic_level,
       y = count, 
@@ -163,6 +165,14 @@ ggsave(
 
 
 
+
+# Ensure CRB_Final is a factor or numeric with 0 and 1
+Bird_data_clean %>%
+  group_by(Trophic_level, CRB_Final) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(Trophic_level) %>%
+  mutate(percent = round(100 * n / sum(n), 1)) %>%
+  arrange(Trophic_level, desc(CRB_Final))
 
 
 ########### PERCENTAGE CRB PER HWI #############
@@ -269,18 +279,145 @@ legend(
 dev.off()
 
 
+####### FIGURES WITH MODEL AND UNIQUE VARIABLE ######
+#HWI model and CRB
+#load model
+test_model_phyl_subset_40_PRIORS_trophic <- readRDS("Models/test_model_phyl_subset_40_PRIORS_trophic.rds")
+
+# Create new data for prediction (fix other covariates, vary HWI)
+newdata <- data.frame(
+  HWI = seq(min(traits$HWI, na.rm = TRUE),
+            max(traits$HWI, na.rm = TRUE),
+            length.out = 100),
+  mass_kg = mean(traits$mass_kg, na.rm = TRUE),           # Fix mass_kg at mean
+  Trophic_level = "Carnivore",                            # Choose one trophic level
+  phylogeny = NA                                           # Needed if phylogeny is a group-level effect
+)
+
+# Predict from the model
+preds <- posterior_epred(test_model_phyl_subset_40_PRIORS_trophic, newdata = newdata, re_formula = NA)  # exclude random effects
+
+# Compute summary statistics across iterations for each data point
+pred_summary <- apply(preds, 2, function(x) {
+  c(mean = mean(x),
+    lower = quantile(x, 0.025),
+    upper = quantile(x, 0.975))
+})
+
+# Transpose so each row is one prediction with its summary
+pred_summary <- t(pred_summary)
+
+# Format as data frame for plotting or saving
+pred_df <- data.frame(
+  HWI = newdata$HWI,
+  Estimate = pred_summary[, "mean"],
+  Lower = pred_summary[, "lower.2.5%"],
+  Upper = pred_summary[, "upper.97.5%"]
+)
 
 
 
+#plot together
+ggplot(Bird_data_clean, aes(x = HWI, y = CRB_Final)) +
+  # Jittered observed values
+  geom_jitter(aes(color = factor(CRB_Final), shape = factor(CRB_Final)),
+              width = 0.2, height = 0.02, alpha = 0.5) +
+  
+  # Model predicted line and ribbon
+  # geom_ribbon(data = pred_df,
+  #             inherit.aes = FALSE,
+  #             aes(x = HWI, ymin = Lower, ymax = Upper),
+  #             fill = "grey70", alpha = 0.4) +
+  geom_line(data = pred_df,
+            inherit.aes = FALSE,
+            aes(x = HWI, y = Estimate),
+            color = "black", size = 1.2, linetype = "dashed") +
+  # Color and shape
+  scale_color_manual(values = c("#66C2A5", "#FC8D62"),
+                     labels = c("CRB absent", "CRB present")) +
+  scale_shape_manual(values = c(1, 4),
+                     labels = c("CRB absent", "CRB present")) +
+  
+  # Labels
+  labs(
+    x = "Hand-wing Index (HWI)",
+    y = "Probability of communal roosting",
+    color = "CRB Status",
+    shape = "CRB Status"
+  ) +
+  
+  # Theme
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = c(0.8, 0.8),
+    legend.box.background = element_rect(color = "black"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave(
+  filename = "Figures/CRB_HWI_model_prediction.png",
+  width = 10,          # width in inches
+  height = 6,          # height in inches
+  dpi = 300            # high resolution
+)
 
 
 
+# Create sequence of mass values across observed range
+mass_seq <- seq(min(traits$mass_kg, na.rm = TRUE),
+                max(traits$mass_kg, na.rm = TRUE), length.out = 100)
+
+# Create new data frame for prediction
+newdata_mass <- data.frame(
+  mass_kg = mass_seq,
+  HWI = median(traits$HWI, na.rm = TRUE),
+  Trophic_level = "Carnivore"  # or any reference level you prefer
+)
 
 
+# Generate predictions without random effects
+preds_mass <- posterior_epred(test_model_phyl_subset_40_PRIORS_trophic,
+                              newdata = newdata_mass, re_formula = NA)
 
+# Summarize across posterior draws
+# Summarize across posterior draws and transpose
+pred_mass_summary <- t(apply(preds_mass, 2, function(x) c(
+  mean = mean(x),
+  lower = quantile(x, 0.025),
+  upper = quantile(x, 0.975)
+)))
 
+pred_mass_df <- data.frame(
+  mass_kg = newdata_mass$mass_kg,
+  Estimate = pred_summary[, "mean"],
+  Lower = pred_summary[, "lower.2.5%"],
+  Upper = pred_summary[, "upper.97.5%"]
+)
 
+#Plot
+ggplot(traits, aes(x = mass_kg, y = CRB_Final)) +
+  geom_jitter(aes(color = factor(CRB_Final), shape = factor(CRB_Final)),
+              width = 0.2, height = 0.02, alpha = 0.5) +
+  scale_color_manual(values = c("#66C2A5", "#FC8D62"),
+                     labels = c("CRB absent", "CRB present")) +
+  scale_shape_manual(values = c(1, 4),
+                     labels = c("CRB absent", "CRB present")) +
+  geom_line(data = pred_mass_df, aes(x = mass_kg, y = Estimate),
+            color = "black", size = 1.2, linetype = "dashed") +
+  # geom_ribbon(data = pred_mass_df,
+  #             aes(x = mass_kg, ymin = Lower, ymax = Upper),
+  #             alpha = 0.2, fill = "black") +
+  labs(x = "Body Mass (kg)",
+       y = "Estimated probability of communal roosting",
+       color = "CRB Status", shape = "CRB Status") +
+  theme_classic(base_size = 14) +
+  theme(legend.position = c(0.8, 0.8),
+        legend.box.background = element_rect(color = "black"),
+        panel.grid.minor = element_blank())
 
-
-
-
+ggsave(
+  filename = "Figures/CRB_mass_model_prediction.png",
+  width = 10,          # width in inches
+  height = 6,          # height in inches
+  dpi = 300            # high resolution
+)
