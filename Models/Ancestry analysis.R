@@ -525,7 +525,7 @@ mtext("B", side = 3, line = -1, adj = 0.05, cex = 1, font = 2)  # moved down
 add.color.bar(
   leg = 0.4 * max(nodeHeights(accip_tree)),
   cols = accip_mass_map$cols,
-  title = "log Mass (kg)",
+  title = "Mass (kg)",
   lims = round(range(accip_mass_log, na.rm = TRUE), 2),
   digits = 2,
   prompt = FALSE,
@@ -536,3 +536,271 @@ add.color.bar(
 )
 # Finish saving
 dev.off()
+
+
+####### CASE STUDY CIRCUS GENUS ##########
+library(ape)
+library(phytools)
+
+# Step 1: Get species in genus Circus (Accipitridae)
+circus_species <- grep("^Circus_", tree$tip.label, value = TRUE)
+
+# Step 2: Ensure they are in the tree
+circus_species <- circus_species[circus_species %in% tree$tip.label]
+if (length(circus_species) < 2) stop("Not enough Circus species in the tree.")
+
+# Step 3: Get MRCA node of genus Circus
+circus_mrca <- getMRCA(tree, circus_species)
+
+# Step 4: Extract clade
+circus_tree <- extract.clade(tree, node = circus_mrca)
+
+# Step 5: Get internal node IDs
+circus_node_ids <- (Ntip(circus_tree) + 1):(Ntip(circus_tree) + circus_tree$Nnode)
+
+# Step 6: Map internal nodes to original tree node numbers
+circus_node_labels <- matchNodes(circus_tree, tree)[,2]  # column 2 = full tree node
+
+# Step 7: Filter valid nodes with ancestral reconstructions
+valid_nodes <- circus_node_labels[circus_node_labels %in% rownames(anc_local)]
+
+# Step 8: Subset ancestral state matrix
+anc_circus <- anc_local[as.character(valid_nodes), , drop = FALSE]
+rownames(anc_circus) <- circus_node_ids[circus_node_labels %in% rownames(anc_local)]
+
+# Step 9: Get node heights for timing (from root)
+circus_heights <- nodeHeights(circus_tree)
+node_indices <- match(as.integer(rownames(anc_circus)), circus_node_ids)
+node_ages <- circus_heights[node_indices, 2]  # depth from root
+
+# Step 10: Identify nodes with CRB_Final = 1 (probability > 0.5)
+crb_probs <- anc_circus[, "1"]
+likely_crb_nodes <- node_ages[crb_probs > 0.5]
+
+# Step 11: Report earliest origin of CRB in Circus
+if (length(likely_crb_nodes) == 0) {
+  cat("No evidence that CRB_Final = 1 evolved within the Circus clade (posterior > 0.5)\n")
+} else {
+  earliest_crb_circus <- max(likely_crb_nodes, na.rm = TRUE)
+  cat("Estimated age of first CRB presence in Circus:", round(earliest_crb_circus, 2), "MYA\n")
+}
+
+
+#Repeat estimation for HWI
+# 1. Get all Circus species in the tree
+circus_species <- grep("^Circus_", tree$tip.label, value = TRUE)
+circus_species <- circus_species[circus_species %in% tree$tip.label]
+
+# 2. Get MRCA node of the Circus genus
+circus_mrca <- getMRCA(tree, circus_species)
+
+# 3. Extract the clade for Circus
+circus_tree <- extract.clade(tree, node = circus_mrca)
+
+# 4. Internal nodes in Circus clade (as per circus_tree)
+circus_node_ids <- (Ntip(circus_tree) + 1):(Ntip(circus_tree) + circus_tree$Nnode)
+
+# 5. Map nodes back to the full tree
+circus_node_labels <- matchNodes(circus_tree, tree)[,2]  # original tree node IDs
+
+# 6. Filter to valid nodes with CRB probabilities
+valid_nodes <- circus_node_labels[circus_node_labels %in% rownames(anc_local)]
+
+# 7. Get posterior probabilities of CRB = 1
+anc_circus <- anc_local[as.character(valid_nodes), , drop = FALSE]
+crb_probs <- anc_circus[, "1"]
+
+# 8. Find the earliest node with CRB = 1 (posterior > 0.5)
+if (any(crb_probs > 0.5)) {
+  first_crb_node <- valid_nodes[which.max(crb_probs > 0.5)]
+  
+  # 9. HWI is indexed by node numbers, not labels — match to hwi_anc
+  if (as.character(first_crb_node) %in% names(hwi_anc)) {
+    hwi_at_crb_origin <- hwi_anc[as.character(first_crb_node)]
+    cat("Estimated HWI at CRB origin in Circus genus:", round(hwi_at_crb_origin, 2), "\n")
+  } else {
+    cat("Node found for CRB origin, but no HWI ancestral estimate for that node.\n")
+  }
+} else {
+  cat("No Circus node has posterior > 0.5 for CRB = 1.\n")
+}
+
+
+
+
+########### CASE STUDY CRB LOSSES ##########
+
+# Helper to get descendant tips of a node
+get_descendant_tips <- function(tree, node) {
+  desc <- getDescendants(tree, node)
+  desc[desc <= Ntip(tree)]
+}
+
+# Get node numbers and tip labels
+internal_nodes <- (Ntip(tree) + 1):(Ntip(tree) + tree$Nnode)
+
+loss_clades <- list()
+
+# Get all internal nodes
+internal_nodes <- (Ntip(tree) + 1):(Ntip(tree) + tree$Nnode)
+
+for (node in internal_nodes) {
+  # 1. Check if we have ancestral reconstruction at this node
+  if (!as.character(node) %in% rownames(anc_local)) next
+  
+  # 2. Ancestral state most likely CRB present
+  anc_probs <- anc_local[as.character(node), ]
+  if (which.max(anc_probs) != which(levels(x) == "1")) next
+  
+  # 3. Get descendant tips
+  tips <- get_descendant_tips(tree, node)
+  tip_labels <- tree$tip.label[tips]
+  tip_states <- x[tip_labels]
+  
+  # 4. Check if most tips are CRB = 0 (absent)
+  if (sum(tip_states == "0", na.rm = TRUE) / length(tip_states) >= 0.8) {
+    loss_clades[[as.character(node)]] <- list(
+      node = node,
+      tips = tip_labels,
+      percent_lost = round(mean(tip_states == "0", na.rm = TRUE) * 100, 1)
+    )
+  }
+}
+loss_clades <- list()
+
+# Get all internal nodes
+internal_nodes <- (Ntip(tree) + 1):(Ntip(tree) + tree$Nnode)
+
+for (node in internal_nodes) {
+  # 1. Check if we have ancestral reconstruction at this node
+  if (!as.character(node) %in% rownames(anc_local)) next
+  
+  # 2. Ancestral state most likely CRB present
+  anc_probs <- anc_local[as.character(node), ]
+  if (which.max(anc_probs) != which(levels(x) == "1")) next
+  
+  # 3. Get descendant tips
+  tips <- get_descendant_tips(tree, node)
+  tip_labels <- tree$tip.label[tips]
+  tip_states <- x[tip_labels]
+  
+  # 4. Check if most tips are CRB = 0 (absent)
+  if (sum(tip_states == "0", na.rm = TRUE) / length(tip_states) >= 0.8) {
+    loss_clades[[as.character(node)]] <- list(
+      node = node,
+      tips = tip_labels,
+      percent_lost = round(mean(tip_states == "0", na.rm = TRUE) * 100, 1)
+    )
+  }
+}
+
+# View nodes where CRB_Final was lost
+length(loss_clades)
+loss_clades[[1]]
+
+# See node numbers and % loss
+sapply(loss_clades, function(x) x$percent_lost)
+
+# Ensure you have a species-to-family mapping
+species_families <- Bird_data[, c("Species", "Family")]
+
+
+# Flatten loss_clades into a long data frame
+loss_df <- do.call(rbind, lapply(loss_clades, function(clade) {
+  data.frame(
+    node = clade$node,
+    tip = clade$tips,
+    percent_lost = clade$percent_lost
+  )
+}))
+
+# Merge in family info
+loss_df <- merge(loss_df, species_families, by.x = "tip", by.y = "Species", all.x = TRUE)
+
+# View all tips and families from loss clades
+View(loss_df)
+
+# Or summarize how many species per family
+summary_by_family <- loss_df %>%
+  group_by(Family) %>%
+  summarise(
+    n_species = n(),
+    nodes = paste(unique(node), collapse = ", "),
+    avg_percent_lost = mean(percent_lost)
+  )
+
+
+######### CASE STUDY VULTURES ########
+
+get_crb_origin_time <- function(family_name, tree, Bird_data, x, anc_local) {
+  # 1. Get species in the family
+  spp <- Bird_data$Species[Bird_data$Family == family_name]
+  spp <- spp[spp %in% tree$tip.label]
+  if (length(spp) < 2) return(NULL)  # Need at least two to define a clade
+  
+  # 2. Get MRCA of these species
+  mrca_node <- getMRCA(tree, spp)
+  if (is.null(mrca_node)) return(NULL)
+  
+  # 3. Get descendant nodes in the clade
+  clade_nodes <- getDescendants(tree, mrca_node)
+  clade_nodes <- clade_nodes[clade_nodes > Ntip(tree)]  # Keep internal nodes only
+  
+  # 4. Search for first internal node in clade where CRB = 1 is most probable
+  for (node in clade_nodes) {
+    node_str <- as.character(node)
+    if (!node_str %in% rownames(anc_local)) next
+    probs <- anc_local[node_str, ]
+    if (which.max(probs) == which(levels(x) == "1")) {
+      time <- max(nodeHeights(tree)) - nodeHeights(tree)[which(tree$edge[,2] == node), 2]
+      return(list(
+        family = family_name,
+        node = node,
+        time_mya = round(time, 2),
+        prob_crb1 = round(probs["1"], 3)
+      ))
+    }
+  }
+  
+  return(NULL)  # No CRB = 1 node found in the clade
+}
+
+get_crb_origin_time <- function(family_name, tree, Bird_data, x, anc_local) {
+  # 1. Get species in the family
+  spp <- Bird_data$Species[Bird_data$Family == family_name]
+  spp <- spp[spp %in% tree$tip.label]
+  if (length(spp) < 2) return(NULL)  # Need at least two to define a clade
+
+  # 2. Get MRCA of these species
+  mrca_node <- getMRCA(tree, spp)
+  if (is.null(mrca_node)) return(NULL)
+
+  # 3. Get descendant nodes in the clade
+  clade_nodes <- getDescendants(tree, mrca_node)
+  clade_nodes <- clade_nodes[clade_nodes > Ntip(tree)]  # Keep internal nodes only
+
+  # 4. Search for first internal node in clade where CRB = 1 is most probable
+  for (node in clade_nodes) {
+    node_str <- as.character(node)
+    if (!node_str %in% rownames(anc_local)) next
+    probs <- anc_local[node_str, ]
+    if (which.max(probs) == which(levels(x) == "1")) {
+      time <- max(nodeHeights(tree)) - nodeHeights(tree)[which(tree$edge[,2] == node), 2]
+      return(list(
+        family = family_name,
+        node = node,
+        time_mya = round(time, 2),
+        prob_crb1 = round(probs["1"], 3)
+      ))
+    }
+  }
+
+  return(NULL)  # No CRB = 1 node found in the clade
+}
+
+res_cathart <- get_crb_origin_time("Cathartidae", tree, Bird_data, x, anc_local)
+res_accip   <- get_crb_origin_time("Accipitridae", tree, Bird_data, x, anc_local)
+
+print(res_cathart)
+print(res_accip)
+
