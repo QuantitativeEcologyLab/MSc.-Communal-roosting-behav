@@ -11,6 +11,10 @@ library(ggnewscale)
 library(ggmosaic)
 library(scales)
 library(brms)
+library(patchwork)
+library(rphylopic)    # for loading phylo images
+library(grid)    
+
 
 # Load data and tree #---------------------------------------------------------#
 Bird_data_clean <- read_csv("Chapters/Bird_data_clean.csv")
@@ -318,7 +322,19 @@ pred_df <- data.frame(
 
 
 #plot together
-ggplot(Bird_data_clean, aes(x = HWI, y = CRB_Final)) +
+#First get phylopics
+
+uuid_troglodytes <- "1e43b8d5-7cd1-492f-830e-3bbf13001510"   # for Troglodytes hiemalis
+uuid_aquila       <- "c9f94d9a-2e84-4d27-a4fd-ee4ae9b94ff6"   # for Aquila nipalensis
+uuid_hirundo      <- "092135f1-8faa-4474-89ef-dba54a48c667"   # for Hirundo rustica
+
+# Retrieve silhouettes
+img_troglodytes <- get_phylopic(uuid_troglodytes)
+img_aquila       <- get_phylopic(uuid_aquila)
+img_hirundo      <- get_phylopic(uuid_hirundo)
+
+
+Fig_HWI<-ggplot(Bird_data_clean, aes(x = HWI, y = CRB_Final)) +
   # Jittered observed values
   geom_jitter(aes(color = factor(CRB_Final), shape = factor(CRB_Final)),
               width = 0.2, height = 0.02, alpha = 0.5) +
@@ -333,7 +349,7 @@ ggplot(Bird_data_clean, aes(x = HWI, y = CRB_Final)) +
             aes(x = HWI, y = Estimate),
             color = "black", size = 1.2, linetype = "dashed") +
   # Color and shape
-  scale_color_manual(values = c("#66C2A5", "#FC8D62"),
+  scale_color_manual(values = c("#0072B2", "#E69F00"),
                      labels = c("CRB absent", "CRB present")) +
   scale_shape_manual(values = c(1, 4),
                      labels = c("CRB absent", "CRB present")) +
@@ -349,10 +365,23 @@ ggplot(Bird_data_clean, aes(x = HWI, y = CRB_Final)) +
   # Theme
   theme_classic(base_size = 14) +
   theme(
-    legend.position = c(0.8, 0.8),
+    legend.position = c(0.8, 0.6),
     legend.box.background = element_rect(color = "black"),
-    panel.grid.minor = element_blank()
-  )
+    panel.grid.minor = element_blank(),
+    axis.title.y = element_text(size = 11)
+    ) 
+
+
+# Add silhouettes
+Fig_HWI <- Fig_HWI+
+  add_phylopic(uuid = uuid_troglodytes, x = 5,  y = 0.1,  ysize = 0.15, alpha = 0.7,
+               color = "black", fill = "black") +
+  add_phylopic(uuid = uuid_aquila,      x = 25, y = 0.5,  ysize = 0.15, alpha = 0.7,
+               color = "black", fill = "black") +
+  add_phylopic(uuid = uuid_hirundo,     x = 50, y = 0.9,  ysize = 0.15, alpha = 0.7,
+               color = "black", fill = "black")
+
+
 
 ggsave(
   filename = "Figures/CRB_HWI_model_prediction.png",
@@ -395,10 +424,10 @@ pred_mass_df <- data.frame(
 )
 
 #Plot
-ggplot(traits, aes(x = mass_kg, y = CRB_Final)) +
+Fig_mass<- ggplot(traits, aes(x = mass_kg, y = CRB_Final)) +
   geom_jitter(aes(color = factor(CRB_Final), shape = factor(CRB_Final)),
               width = 0.2, height = 0.02, alpha = 0.5) +
-  scale_color_manual(values = c("#66C2A5", "#FC8D62"),
+  scale_color_manual(values = c("#0072B2", "#E69F00"),
                      labels = c("CRB absent", "CRB present")) +
   scale_shape_manual(values = c(1, 4),
                      labels = c("CRB absent", "CRB present")) +
@@ -408,16 +437,38 @@ ggplot(traits, aes(x = mass_kg, y = CRB_Final)) +
   #             aes(x = mass_kg, ymin = Lower, ymax = Upper),
   #             alpha = 0.2, fill = "black") +
   labs(x = "Body Mass (kg)",
-       y = "Estimated probability of communal roosting",
+       y = "Probability of communal roosting",
        color = "CRB Status", shape = "CRB Status") +
   theme_classic(base_size = 14) +
-  theme(legend.position = c(0.8, 0.8),
+  theme(legend.position = c(0.8, 0.6),
         legend.box.background = element_rect(color = "black"),
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        axis.title.y = element_text(size = 11))
 
 ggsave(
   filename = "Figures/CRB_mass_model_prediction.png",
   width = 10,          # width in inches
   height = 6,          # height in inches
   dpi = 300            # high resolution
+)
+
+
+
+# Combine them side by side (A | B)
+combined_plot <- Fig_HWI / Fig_mass +
+  plot_annotation(
+    tag_levels = 'a',         # adds "", "B" labels
+    tag_prefix = 'Panel '     # makes them "Panel A", "Panel B"
+  ) &
+  theme(
+    plot.tag = element_text(size = 10, face = "bold")  # smaller label size
+  )
+
+
+ggsave(
+  filename = "Figures/CRB_mass_combined_panels_vertical.png",
+  plot = combined_plot,
+  width = 8,
+  height = 10,
+  dpi = 300
 )
