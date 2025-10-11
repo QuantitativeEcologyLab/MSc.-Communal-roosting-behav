@@ -23,8 +23,8 @@ traits <- Bird_data_clean %>% filter(Species %in% tree$tip.label)
 
 # Color palette for figures
 primary_colors <- c(
-  "#66C2A5", # No CRB
-  "#FC8D62", # CRB
+  "#0072B2", # No CRB
+  "#E69F00", # CRB
   "#8DA0CB", # Light Blue
   "#E78AC3"  # Pink/Lilac
 )
