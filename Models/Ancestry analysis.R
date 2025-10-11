@@ -181,7 +181,7 @@ cat("CRB likely evolved at least", round(earliest_crb_age, 2), "million years ag
 png("Figures/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
 
 # Custom state colors
-state_colors <- c("#66C2A5", "#FC8D62")  # for 0 and 1
+state_colors <- c("#0072B2", "#E69F00")  # for 0 and 1
 
 # Plot the tree with smaller tip label font
 plotTree(tree,
@@ -229,7 +229,7 @@ dev.off()
 #Plot subset on Accipiters
 
 # Step 1: Get species in Accipitridae
-accip_species <- Bird_data$Species[Bird_data$Family == "Accipitridae"]
+accip_species <- Bird_data_clean$Species[Bird_data_clean$Family == "Accipitridae"]
 
 # Step 2: Check which of these are in the tree
 accip_species <- accip_species[accip_species %in% tree$tip.label]
@@ -269,7 +269,7 @@ plotTree(accip_tree,
 title("")
 
 # Use your CRB state colors
-state_colors <- c("#66C2A5", "#FC8D62")  # for 0 and 1
+state_colors <- c("#0072B2", "#E69F00")  # for 0 and 1
 
 # Transparent plotting for clean overlay
 par(fg = "transparent")

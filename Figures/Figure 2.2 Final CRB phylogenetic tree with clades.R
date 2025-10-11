@@ -15,8 +15,8 @@ library(tribble)
 library(ragg)
 #Color Scheme
 primary_colors <- c(
-  "#66C2A5", # Aqua/Teal
-  "#FC8D62", # Salmon/Orange
+  "#0072B2", # Aqua/Teal
+  "#E69F00", # Salmon/Orange
   "#8DA0CB", # Light Blue
   "#E78AC3"  # Pink/Lilac
 )
