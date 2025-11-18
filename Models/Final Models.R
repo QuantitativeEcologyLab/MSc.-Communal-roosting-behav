@@ -17,6 +17,10 @@ library(geiger)
 library(phytools)
 library("glue") #for nice string formatting in the pushover message
 library(pushoverr)
+#install.packages("rphylopic")
+library(rphylopic)
+library(png)        # for reading PNG images if needed
+library(jpeg)
 set_pushover_user(user = "usdw6uw28zwd2496rr2dnni3efz4ds")
 set_pushover_app(token = "aa21xm4a7vi9dcfv9d46p1qypg8miu")
 
@@ -320,6 +324,43 @@ summary(Model_mass_mass)
 
 #Calculate the residuals of the model and store them in the database
 Residuals_body_mass <-residuals(Model_mass_mass)
+
+
+# Scatterplot with fitted line
+png("brain_mass_vs_body_mass.png", width = 2000, height = 1500, res = 300)
+plot(sub_brain$mass_kg, sub_brain$brain_mass_g,
+     pch = 16, cex=0.5, col = "grey40",
+     xlab = "Body mass (kg)",
+     ylab = "Brain mass (g)",
+     main = "Brain mass vs Body mass")
+
+abline(Model_mass_mass, col = "blue", lwd = 2)
+dev.off()  # close the device
+
+# Residuals vs fitted values
+plot(fitted(Model_mass_mass), Residuals_body_mass,
+     pch = 19, col = "darkred",
+     xlab = "Fitted brain mass (g)",
+     ylab = "Residuals",
+     main = "Residuals vs Fitted Values")
+
+abline(h = 0, lwd = 2, lty = 2)
+
+# Calculate fitted values
+fitted_vals <- fitted(Model_mass_mass)
+
+# Add residuals and fitted values to the dataset
+sub_brain$Residuals <- residuals(Model_mass_mass)
+sub_brain$Fitted <- fitted_vals
+
+# Identify species above and below the regression line
+species_above <- sub_brain[sub_brain$Residuals > 0, ]
+species_below <- sub_brain[sub_brain$Residuals < 0, ]
+
+
+
+
+
 
 #attach to df
 # If residuals are a matrix, convert to vector
