@@ -387,7 +387,7 @@ ggsave(
   filename = "Figures/CRB_HWI_model_prediction.png",
   width = 10,          # width in inches
   height = 6,          # height in inches
-  dpi = 300            # high resolution
+  dpi = 600            # high resolution
 )
 
 
@@ -449,7 +449,7 @@ ggsave(
   filename = "Figures/CRB_mass_model_prediction.png",
   width = 10,          # width in inches
   height = 6,          # height in inches
-  dpi = 300            # high resolution
+  dpi = 600            # high resolution
 )
 
 
@@ -470,5 +470,5 @@ ggsave(
   plot = combined_plot,
   width = 8,
   height = 10,
-  dpi = 300
+  dpi = 600
 )
