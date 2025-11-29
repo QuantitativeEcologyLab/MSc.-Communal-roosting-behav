@@ -73,7 +73,7 @@ png(
   width    = 10,     # inches
   height   = 8,     # inches
   units    = "in",
-  res      = 300    # DPI
+  res      = 600    # DPI
 )
 
 par(mar = c(6, 5, 5, 5))

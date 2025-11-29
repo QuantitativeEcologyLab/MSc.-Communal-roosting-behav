@@ -319,7 +319,12 @@ saveRDS(Model_2,
 ######### STEP 6 - GLOBAL MODEL ON SUBSET WITH BRAIN DATA ########
 
 #Model the two variables using a linear model
-Model_mass_mass<-lm(brain_mass_g ~ mass_kg, data =sub_brain)
+# Model_mass_mass<-lm(brain_mass_g ~ Mass, data =sub_brain)
+Model_mass_mass <- lm(log(brain_mass_g) ~ log(Mass), data = sub_brain)
+summary(Model_mass_mass)
+
+
+plot(Model_mass_mass)
 summary(Model_mass_mass)
 
 #Calculate the residuals of the model and store them in the database
@@ -328,13 +333,35 @@ Residuals_body_mass <-residuals(Model_mass_mass)
 
 # Scatterplot with fitted line
 png("brain_mass_vs_body_mass.png", width = 2000, height = 1500, res = 300)
-plot(sub_brain$mass_kg, sub_brain$brain_mass_g,
+plot(sub_brain$Mass, sub_brain$brain_mass_g,
      pch = 16, cex=0.5, col = "grey40",
      xlab = "Body mass (kg)",
      ylab = "Brain mass (g)",
      main = "Brain mass vs Body mass")
 
-abline(Model_mass_mass, col = "blue", lwd = 2)
+
+# Raw scatterplot (your code)
+plot(sub_brain$Mass, sub_brain$brain_mass_g,
+     pch = 16, cex = 0.5, col = "grey40",
+     xlab = "Body mass (kg)",
+     ylab = "Brain mass (g)",
+     main = "Brain mass vs Body mass")
+
+# --- Fit allometric model (log–log) ---
+Model_mass_mass <- lm(log(brain_mass_g) ~ log(Mass), data = sub_brain)
+
+# --- Generate prediction curve on raw x-axis ---
+xseq <- seq(min(sub_brain$Mass, na.rm=TRUE),
+            max(sub_brain$Mass, na.rm=TRUE),
+            length.out = 200)
+
+pred_log <- predict(Model_mass_mass, 
+                    newdata = data.frame(Mass = xseq))
+# Back-transform (exp) to original scale
+pred_raw <- exp(pred_log)
+
+# --- Add fitted curve to the plot ---
+lines(xseq, pred_raw, col = "blue", lwd = 2)
 dev.off()  # close the device
 
 # Residuals vs fitted values
@@ -385,13 +412,13 @@ base_model_no_phylo_brain <- brm(
 
 summary(base_model_no_phylo_brain)
 priors_brain <- c(
-  prior(student_t(3, 0.03, 0.015), class = "b", coef = "HWI"),
-  prior(student_t(3, 0.27, 0.25), class = "b", coef = "mass_kg"),
-  prior(student_t(3, -0.59, 0.5), class = "b", coef = "Trophic_levelCarnivore"),
-  prior(student_t(3, -0.33, 0.5), class = "b", coef = "Trophic_levelHerbivore"),
-  prior(student_t(3, 0.09, 0.5), class = "b", coef = "Trophic_levelOmnivore"),
-  prior(student_t(3, -0.53, 1.5), class = "b", coef = "Trophic_levelScavenger"),
-  prior(student_t(3, 0.03, 0.1), class = "b", coef = "Residuals_body_mass")
+  prior(student_t(3, 0.03, 0.02), class = "b", coef = "HWI"),
+  prior(student_t(3, 0.28, 0.33), class = "b", coef = "mass_kg"),
+  prior(student_t(3, -0.70, 0.55), class = "b", coef = "Trophic_levelCarnivore"),
+  prior(student_t(3, -0.22, 0.65), class = "b", coef = "Trophic_levelHerbivore"),
+  prior(student_t(3, 0.12, 0.55), class = "b", coef = "Trophic_levelOmnivore"),
+  prior(student_t(3, -0.97, 2.6), class = "b", coef = "Trophic_levelScavenger"),
+  prior(student_t(3, -0.69, 0.80), class = "b", coef = "Residuals_body_mass")
 )
 
 

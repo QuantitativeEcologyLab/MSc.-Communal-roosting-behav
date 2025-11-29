@@ -22,11 +22,11 @@ Bird_data$Species <- gsub("_+$", "", Bird_data$Species)
 
 #Subset the variables that will go into the model
 Bird_data_clean<- Bird_data %>%
-  select(Species, Mass, Trophic_level, HWI, brain_volume_mm3, CRB_Final)
+  select(Species, Mass, Family, Trophic_level, HWI, brain_volume_mm3, CRB_Final)
 
 #Remove NA in CRB
 Bird_data_clean <- Bird_data %>%
-  select(Species, Mass, Trophic_level, HWI, brain_volume_mm3, CRB_Final) %>%
+  select(Species,Family, Mass, Trophic_level, HWI, brain_volume_mm3, CRB_Final) %>%
   drop_na(CRB_Final)
 
 #Read tree
@@ -178,7 +178,12 @@ cat("CRB likely evolved at least", round(earliest_crb_age, 2), "million years ag
 ############### PLOT ALL DATA AND ANCESTRAL STATE ###############
 #Plot version 
 #Plot and save
-png("Figures/Ancestry analysis.png", width = 2000, height = 2000, res = 300)
+png("Figures/Ancestry analysis.png",
+    width  = 7,      # inches
+    height = 7,      # inches
+    units  = "in",
+    res    = 600)    # DPI
+
 
 # Custom state colors
 state_colors <- c("#0072B2", "#E69F00")  # for 0 and 1
@@ -225,6 +230,19 @@ dev.off()
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 ############### PLOT ACCIPITER DATA AND ANCESTRAL STATE ###############
 #Plot subset on Accipiters
 
@@ -257,7 +275,11 @@ rownames(anc_accip) <- accip_node_ids[accip_node_labels %in% rownames(anc_local)
 
 
 #Plot and save
-png("Figures/Ancestry analysis Accipiters.png", width = 2000, height = 2000, res = 300)
+png("Figures/Ancestry analysis Accipiters.png", 
+    width  = 7,      # inches
+    height = 7,      # inches
+    units  = "in",
+    res    = 600)    # DPI
 # Plot
 plotTree(accip_tree,
          #type = "fan",
@@ -482,7 +504,11 @@ add.color.bar(
 
 
 # Save to file
-png("Figures/Ancestral state Accipitridae_HWI_Mass.png", width = 3000, height = 1500, res = 300)
+png("Figures/Ancestral state Accipitridae_HWI_Mass.png", 
+    width  = 7,      # inches
+    height = 7,      # inches
+    units  = "in",
+    res    = 600)    # DPI
 
 # Set up side-by-side panels
 par(mfrow = c(1, 2), mar = c(1, 6, 4, 1))  # more space on left for labels

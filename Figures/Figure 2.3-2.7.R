@@ -40,7 +40,7 @@ png(
   width    = 10,     # inches
   height   = 8,     # inches
   units    = "in",
-  res      = 300    # DPI
+  res      = 600    # DPI
 )
 
 # x y chart of HWI vs Mass for CRB
@@ -87,7 +87,7 @@ png(
   width    = 10,     # inches
   height   = 8,     # inches
   units    = "in",
-  res      = 300    # DPI
+  res      = 600    # DPI
 )
 plot(
   traits$HWI, traits$mass_kg,
@@ -127,10 +127,9 @@ dev.off()
 library(scales)
 df_summary <- Bird_data_clean %>%
   group_by(Trophic_level, CRB_Final) %>%
-  summarise(count = n(), .groups = 'drop') %>%
-  mutate(
-    CRB_Final = 
-  )
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(Trophic_level) %>%
+  mutate(percent = count / sum(count))
 
 
 Fig2.5 <- ggplot( df_summary, 
@@ -164,7 +163,7 @@ ggsave(
   width    = 10,
   height   = 8,
   units    = "in",
-  dpi      = 300
+  dpi      = 600
 )
 
 
@@ -198,7 +197,7 @@ png(
   width    = 10,     # inches
   height   = 8,     # inches
   units    = "in",
-  res      = 300    # DPI
+  res      = 600    # DPI
 )
 barplot(
   t(tab_prop),
@@ -248,14 +247,16 @@ colnames(tab_mass) <- c("Absence", "Presence")
 tab_mass_prop <- prop.table(tab_mass, margin = 1)
 
 #Plot 
-par(mar = c(5, 5, 5, 5))
+par(mar = c(5, 5, 5, 8))
+par(mar = c(5, 5, 5, 10))   # ← increase right margin (was probably 5)
+
 #Open to save
 png(
   filename = "Figures/Figure 2.7 Prevalence of CRB per MASS.png",
   width    = 10,     # inches
   height   = 8,     # inches
   units    = "in",
-  res      = 300    # DPI
+  res      = 600    # DPI
 )
 
 barplot(
@@ -277,7 +278,6 @@ legend(
   xpd    = TRUE,
   inset  = c(-0.1, 0)
 )
-
 
 #close to save
 dev.off()
