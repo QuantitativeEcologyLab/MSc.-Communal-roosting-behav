@@ -283,6 +283,89 @@ legend(
 dev.off()
 
 
+
+
+
+############# COMBINED FIGURES #############
+# COLORS
+cols <- c(primary_colors[1], primary_colors[2])
+
+# -------------------------------------------------------------
+# SAVE COMBINED FIGURE
+# -------------------------------------------------------------
+png(
+  filename = "Figures/Figure 2.6-2.7 Combined CRB HWI and MASS.png",
+  width    = 10,
+  height   = 14,   # taller for two stacked plots
+  units    = "in",
+  res      = 600
+)
+
+# layout: 2 rows, 1 column
+par(mfrow = c(2, 1))
+
+# -------------------------------------------------------------
+# PANEL 1 — CRB per HWI
+# -------------------------------------------------------------
+par(mar = c(5, 5, 5, 8))  # more right margin for legend
+
+barplot(
+  t(tab_prop),
+  beside = FALSE,
+  col = cols,
+  xlab = "HWI",
+  ylab = "Percentage",
+  main = "a) CRB prevalence in relation to HWI",
+  ylim = c(0, 1)
+)
+
+legend(
+  "topright",
+  legend = c("Absence", "Presence"),
+  fill   = cols,
+  bty    = "n",
+  xpd    = TRUE,
+  inset  = c(-0.1, 0)
+)
+
+# -------------------------------------------------------------
+# PANEL 2 — CRB per MASS
+# -------------------------------------------------------------
+par(mar = c(5, 5, 5, 8))  # match margins for consistency
+
+barplot(
+  t(tab_mass_prop),
+  beside = FALSE,
+  col    = cols,
+  xlab   = "Mass (kg)",
+  ylab   = "Percentage",
+  main   = "b) CRB prevalence in relation to body mass",
+  ylim   = c(0, 1)
+)
+
+legend(
+  "topright",
+  legend = c("Absence", "Presence"),
+  fill   = cols,
+  bty    = "n",
+  xpd    = TRUE,
+  inset  = c(-0.1, 0)
+)
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
 ####### FIGURES WITH MODEL AND UNIQUE VARIABLE ######
 #HWI model and CRB
 #load model
