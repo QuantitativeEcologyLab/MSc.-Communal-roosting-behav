@@ -332,7 +332,7 @@ Residuals_body_mass <-residuals(Model_mass_mass)
 
 
 # Scatterplot with fitted line
-png("brain_mass_vs_body_mass.png", width = 2000, height = 1500, res = 300)
+png("brain_mass_vs_body_mass.png", width = 2000, height = 1500, res = 600)
 plot(sub_brain$Mass, sub_brain$brain_mass_g,
      pch = 16, cex=0.5, col = "grey40",
      xlab = "Body mass (kg)",

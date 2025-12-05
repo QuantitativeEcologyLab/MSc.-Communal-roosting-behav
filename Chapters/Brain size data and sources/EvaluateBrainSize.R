@@ -102,8 +102,58 @@ plot(clean_data$brain_volume_mm3, clean_data$brain.mass.g)
 plot(clean_data$brain_density_gcm3, main = "Brain Density Distribution", xlab = "Observation Number", ylab = "Brain Density (g/cm³)", pch = 16, col = "blue")
 abline(h = mean(clean_data$brain_density_gcm3), col = "red", lty = 2)
 
-hist(clean_data$brain_density_gcm3, main = "Distribution of Brain Density", xlab = "Brain Density (g/cm³)", ylab = "Frequency", col = "lightblue", border = "black", breaks = 20)
-abline(v = mean(clean_data$brain_density_gcm3), col = "red", lwd = 2, lty = 2)
+png(
+  filename = "Figures/Figure_BrainDensityHistogram.png",
+  width    = 8,      # inches
+  height   = 6,      # inches
+  units    = "in",
+  res      = 600     # high resolution
+)
+
+# --- Your histogram code ---
+
+hist(clean_data$brain_density_gcm3,
+     main = "Distribution of Brain Density",
+     xlab = "Brain Density (g/cm³)",
+     ylab = "Frequency",
+     col = "lightblue",
+     border = "black",
+     breaks = 20)
+
+mean_val <- mean(clean_data$brain_density_gcm3, na.rm = TRUE)
+sd_val   <- sd(clean_data$brain_density_gcm3, na.rm = TRUE)
+N_val    <- sum(!is.na(clean_data$brain_density_gcm3))
+
+abline(v = mean_val, col = "red", lwd = 2, lty = 2)
+
+text(
+  x = par("usr")[2] * 0.98,
+  y = par("usr")[4] * 0.95,
+  labels = paste0(
+    "Mean = ", round(mean_val, 3), "\n",
+    "SD = ",   round(sd_val, 3), "\n",
+    "N = ",    N_val
+  ),
+  adj = c(1, 1),
+  cex = 1.1
+)
+
+# --- Close the file ---
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 plot(clean_data$brain.mass.g, clean_data$brain_density_gcm3, main = "Brain Mass vs Density", xlab = "Brain Mass (g)", ylab = "Brain Density (g/cm³)", pch = 16, col = "blue")
 abline(lm(brain_density_gcm3 ~ brain.mass.g, data = clean_data), col = "red")

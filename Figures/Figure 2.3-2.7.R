@@ -168,6 +168,52 @@ ggsave(
 
 
 
+Fig2.5 <- ggplot(
+  df_summary, 
+  aes(
+    x = Trophic_level,
+    y = count, 
+    fill = factor(CRB_Final)
+  )) +
+  geom_col(position = "fill") +
+  scale_fill_manual(
+    values = c(primary_colors[1], primary_colors[2]),
+    labels = c("Absence", "Presence"),
+    guide = guide_legend(title = NULL)  # fixes warning #1
+  ) +
+  scale_y_continuous(
+    breaks = seq(0, 1, 0.2),
+    labels = scales::number_format(accuracy = 0.1),
+    expand = c(0,0)                     # fixes warning #2
+  ) +
+  labs(
+    title = "CRB Prevalence by Trophic Level",
+    x = "",
+    y = "Proportion"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title    = element_text(hjust = 0.5, size = 16, face = "bold"),
+    axis.text.x   = element_text(angle = 45, hjust = 0.5, vjust = 0.5, size = 16),
+    axis.text.y   = element_text(size = 16),
+    axis.title.y  = element_text(size = 16),
+    legend.position = "right",
+    legend.text   = element_text(size = 16)
+  )
+
+
+ggsave(
+  filename ="Figures/Figure 2.5 Prevalence of CRB per Trophic Level.png",
+  plot     = Fig2.5,
+  width    = 10,
+  height   = 8,
+  units    = "in",
+  dpi      = 600
+)
+
+
+
+
 
 # Ensure CRB_Final is a factor or numeric with 0 and 1
 Bird_data_clean %>%
@@ -219,6 +265,53 @@ legend(
 
 #close to save
 dev.off()
+
+
+
+Fig2.5 <- ggplot(
+  df_summary, 
+  aes(
+    x = Trophic_level,
+    y = count, 
+    fill = factor(CRB_Final)
+  )) +
+  geom_col(position = "fill") +  # 100% stacked bars
+  scale_fill_manual(
+    values = c(primary_colors[1], primary_colors[2]),
+    labels = c("Absence", "Presence"),
+    name = ""
+  ) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    title = "CRB Prevalence by Trophic Level",
+    x = "",
+    y = "Proportion"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title    = element_text(hjust = 0.5, size = 16, face = "bold"),  # bold title
+    axis.text.x   = element_text(angle = 45, hjust = 0.5, vjust = 0.5, size = 16),
+    axis.text.y   = element_text(size = 16),
+    axis.title.y  = element_text(size = 16),  # y-axis label style
+    legend.position = "right",
+    legend.text   = element_text(size = 16)
+  )
+
+ggsave(
+  filename = "Figures/Figure 2.5 Prevalence of CRB per Trophic Level.png",
+  plot     = Fig2.5,
+  width    = 10,
+  height   = 8,
+  units    = "in",
+  dpi      = 600
+)
+
+
+
+
+
+
+
 
 
 
@@ -296,7 +389,7 @@ cols <- c(primary_colors[1], primary_colors[2])
 png(
   filename = "Figures/Figure 2.6-2.7 Combined CRB HWI and MASS.png",
   width    = 10,
-  height   = 14,   # taller for two stacked plots
+  height   = 14,
   units    = "in",
   res      = 600
 )
@@ -307,54 +400,56 @@ par(mfrow = c(2, 1))
 # -------------------------------------------------------------
 # PANEL 1 — CRB per HWI
 # -------------------------------------------------------------
-par(mar = c(5, 5, 5, 8))  # more right margin for legend
+par(mar = c(5, 5, 5, 8))  # enough room for legend
 
 barplot(
   t(tab_prop),
   beside = FALSE,
   col = cols,
   xlab = "HWI",
-  ylab = "Percentage",
+  ylab = "Proportion",
   main = "a) CRB prevalence in relation to HWI",
   ylim = c(0, 1)
 )
 
+# Legend placed OUTSIDE plot region
+par(xpd = NA)  # allow drawing outside plot
 legend(
-  "topright",
+  x = par("usr")[2] * 1.04,   # 10% to the right of plot
+  y = par("usr")[4],          # top of panel
   legend = c("Absence", "Presence"),
   fill   = cols,
-  bty    = "n",
-  xpd    = TRUE,
-  inset  = c(-0.1, 0)
+  bty    = "n"
 )
+par(xpd = FALSE)
 
 # -------------------------------------------------------------
 # PANEL 2 — CRB per MASS
 # -------------------------------------------------------------
-par(mar = c(5, 5, 5, 8))  # match margins for consistency
+par(mar = c(5, 5, 5, 8))  # match margins
 
 barplot(
   t(tab_mass_prop),
   beside = FALSE,
   col    = cols,
   xlab   = "Mass (kg)",
-  ylab   = "Percentage",
+  ylab   = "Proportion",
   main   = "b) CRB prevalence in relation to body mass",
   ylim   = c(0, 1)
 )
 
+# Legend placed OUTSIDE plot region
+par(xpd = NA)
 legend(
-  "topright",
+  x = par("usr")[2] * 1.04,
+  y = par("usr")[4],
   legend = c("Absence", "Presence"),
   fill   = cols,
-  bty    = "n",
-  xpd    = TRUE,
-  inset  = c(-0.1, 0)
+  bty    = "n"
 )
+par(xpd = FALSE)
 
 dev.off()
-
-
 
 
 
@@ -541,7 +636,7 @@ ggsave(
 combined_plot <- Fig_HWI / Fig_mass +
   plot_annotation(
     tag_levels = 'a',         # adds "", "B" labels
-    tag_prefix = 'Panel '     # makes them "Panel A", "Panel B"
+    tag_prefix = ''     # makes them "Panel A", "Panel B"
   ) &
   theme(
     plot.tag = element_text(size = 10, face = "bold")  # smaller label size
