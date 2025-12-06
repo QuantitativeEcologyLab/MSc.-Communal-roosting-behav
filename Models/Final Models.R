@@ -332,37 +332,55 @@ Residuals_body_mass <-residuals(Model_mass_mass)
 
 
 # Scatterplot with fitted line
-png("brain_mass_vs_body_mass.png", width = 2000, height = 1500, res = 600)
-plot(sub_brain$Mass, sub_brain$brain_mass_g,
-     pch = 16, cex=0.5, col = "grey40",
-     xlab = "Body mass (kg)",
-     ylab = "Brain mass (g)",
-     main = "Brain mass vs Body mass")
+png("brain_mass_vs_body_mass.png",
+    width = 3000, height = 2000, res = 600)  # bigger canvas
 
+# Increase margins: bottom, left, top, right
+par(mar = c(6, 6, 4, 2))
+par(mgp = c(3, 1, 0))  # axis title, labels, line
 
-# Raw scatterplot (your code)
+# Set expanded x and y limits for more space around points
+xlims <- c(0, max(sub_brain$Mass, na.rm = TRUE) * 1.1)
+ylims <- c(0, max(sub_brain$brain_mass_g, na.rm = TRUE) * 1.1)
+
+# Scatterplot
 plot(sub_brain$Mass, sub_brain$brain_mass_g,
-     pch = 16, cex = 0.5, col = "grey40",
-     xlab = "Body mass (kg)",
+     pch = 16,
+     cex = 0.5,              # smaller points
+     col = "grey40",
+     xlab = "Body mass (g)",
      ylab = "Brain mass (g)",
-     main = "Brain mass vs Body mass")
+     main = "Brain mass vs Body mass",
+     cex.main = 0.9,         # smaller title
+     cex.lab = 0.8,          # smaller axis labels
+     cex.axis = 0.8,         # smaller tick labels
+     xlim = xlims,
+     ylim = ylims
+)
 
 # --- Fit allometric model (log–log) ---
 Model_mass_mass <- lm(log(brain_mass_g) ~ log(Mass), data = sub_brain)
 
-# --- Generate prediction curve on raw x-axis ---
-xseq <- seq(min(sub_brain$Mass, na.rm=TRUE),
-            max(sub_brain$Mass, na.rm=TRUE),
+# Prediction sequence
+xseq <- seq(min(sub_brain$Mass, na.rm = TRUE),
+            max(sub_brain$Mass, na.rm = TRUE),
             length.out = 200)
-
-pred_log <- predict(Model_mass_mass, 
-                    newdata = data.frame(Mass = xseq))
-# Back-transform (exp) to original scale
+pred_log <- predict(Model_mass_mass, newdata = data.frame(Mass = xseq))
 pred_raw <- exp(pred_log)
 
-# --- Add fitted curve to the plot ---
+# Add fitted curve
 lines(xseq, pred_raw, col = "blue", lwd = 2)
-dev.off()  # close the device
+
+dev.off()
+
+
+
+
+
+
+
+
+
 
 # Residuals vs fitted values
 plot(fitted(Model_mass_mass), Residuals_body_mass,
